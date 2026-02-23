@@ -40,6 +40,8 @@ jobs:
         run: |
           rm -rf openxcom-bin/usr/share/openxcom/UFO
           rm -rf openxcom-bin/usr/share/openxcom/TFTD
+          file openxcom-bin/bin/openxcom 
+          ldd openxcom-bin/bin/openxcom
           tar -czvf ${{ env.FILENAME }}_linux-arm64.tar.gz -C openxcom-bin .
 
       - name: Archive artifacts
@@ -48,9 +50,9 @@ jobs:
           name: ${{ env.FILENAME }}_linux-arm64.tar.gz
           path: ${{ env.FILENAME }}_linux-arm64.tar.gz
 
-  linux-arm:
-    name: Linux-ARM
-    runs-on: ubuntu-22.04-arm
+  linux:
+    name: Linux
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -84,11 +86,13 @@ jobs:
         run: | 
           rm -rf openxcom-bin/usr/share/openxcom/UFO
           rm -rf openxcom-bin/usr/share/openxcom/TFTD
-          tar -czvf ${{ env.FILENAME }}_linux-arm.tar.gz -C openxcom-bin .
+          file openxcom-bin/bin/openxcom 
+          ldd openxcom-bin/bin/openxcom
+          tar -czvf ${{ env.FILENAME }}_linux.tar.gz -C openxcom-bin .
 
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.FILENAME }}_linux-arm.tar.gz
-          path: ${{ env.FILENAME }}_linux-arm.tar.gz
+          name: ${{ env.FILENAME }}_linux.tar.gz
+          path: ${{ env.FILENAME }}_linux.tar.gz
 
