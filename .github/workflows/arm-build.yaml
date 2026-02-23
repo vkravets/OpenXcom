@@ -54,4 +54,51 @@ jobs:
           name: ${{ env.FILENAME }}_linux-arm64.tar.gz
           path: ${{ env.FILENAME }}_linux-arm64.tar.gz
 
+  linux:
+    name: Linux
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
+      - name: Setup environment
+        run: |
+          echo "DATEFILE=`git log -1 --date=format:\"%Y_%m_%d_%H%M\" --format=\"%ad\"`" >> $GITHUB_ENV
+          echo "DATEVERSION=`git log -1 --date=format:\"%Y-%m-%d %H:%M\" --format=\"%ad\"`" >> $GITHUB_ENV
+          echo "CMAKE_BUILD_PARALLEL_LEVEL=`getconf _NPROCESSORS_ONLN 2>/dev/null || getconf NPROCESSORS_ONLN 2>/dev/null || echo 2`" >> $GITHUB_ENV
+
+      - name: Setup version info
+        run: |
+          sed -i "s/OPENXCOM_VERSION_GIT \"[^\"]*\"/OPENXCOM_VERSION_GIT \" git ${{ env.DATEVERSION }}\"/" src/version.h
+          echo "FILENAME=oxce_git_${{ env.DATEFILE }}" >> $GITHUB_ENV
+
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install libsdl1.2-compat-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libsdl-gfx1.2-dev
+
+      - name: Compile source code
+        run: |
+          cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          make -j$(nproc)
+          make install DESTDIR=openxcom-bin
+
+      - name: Create .tar.gz archive
+        run: |
+          mkdir -p openxcom-libs
+          rm -rf openxcom-bin/usr/share/openxcom/UFO
+          rm -rf openxcom-bin/usr/share/openxcom/TFTD
+          file openxcom-bin/usr/bin/openxcom 
+          ldd openxcom-bin/usr/bin/openxcom
+
+          ldd openxcom-bin/usr/bin/openxcom | awk 'NF == 4 { system("cp " $3 " openxcom-libs") }'
+
+          tar -czvf ${{ env.FILENAME }}_linux.tar.gz openxcom-bin openxcom-libs
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FILENAME }}_linux.tar.gz
+          path: ${{ env.FILENAME }}_linux.tar.gz

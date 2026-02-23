@@ -667,6 +667,16 @@ if ( WIN32 )
   endforeach()
 endif ()
 
+# Copy Linux runtime libraries (resolved from linked dependencies) to libs folder
+if ( UNIX AND NOT APPLE )
+  set ( runtime_libs_dir "${EXECUTABLE_OUTPUT_PATH}/libs" )
+  add_custom_command ( TARGET openxcom
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${runtime_libs_dir}
+    COMMAND /bin/sh -c "ldd \"$<TARGET_FILE:openxcom>\" | grep -E '=> /|^/' | sed -E 's/.*=> (\\/[^ ]+).*/\\1/;t;s#^(\\/[^ ]+).*#\\1#' | grep -Ev '/(libc\\.so(\\.|$)|libm\\.so(\\.|$)|libdl\\.so(\\.|$)|libpthread\\.so(\\.|$)|librt\\.so(\\.|$)|ld-linux[^/]*\\.so(\\.|$)|libstdc\\+\\+\\.so(\\.|$)|libgcc_s\\.so(\\.|$))' | sort -u | while read -r lib; do ${CMAKE_COMMAND} -E copy_if_different \"$$lib\" \"${runtime_libs_dir}/\"; done"
+    VERBATIM )
+endif ()
+
 #Setup source groups for IDE
 if ( MSVC OR "${CMAKE_GENERATOR}" STREQUAL "Xcode" )
   source_group ( "Basescape" FILES ${basescape_src} )
