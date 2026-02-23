@@ -603,7 +603,16 @@ if ( EMBED_ASSETS )
   add_dependencies(openxcom zips)
 endif ()
 
-install ( TARGETS openxcom ${install_dest} DESTINATION ${CMAKE_INSTALL_BINDIR} )
+if ( UNIX AND NOT APPLE )
+  install ( TARGETS openxcom 
+            RUNTIME_DEPENDENCY_SET openxcom_runtime_deps  
+            ${install_dest} DESTINATION ${CMAKE_INSTALL_BINDIR} 
+          )
+  install ( RUNTIME_DEPENDENCY_SET openxcom_runtime_deps
+            LIBRARY 
+              DESTINATION bin/libs 
+          )
+endif ()
 # Extra link flags for Windows. They need to be set before the SDL/YAML link flags, otherwise you will get strange link errors ('Undefined reference to WinMain@16')
 if ( WIN32 )
   set ( basic_windows_libs advapi32.lib shell32.lib shlwapi.lib wininet.lib urlmon.lib )
@@ -665,16 +674,6 @@ if ( WIN32 )
 	  VERBATIM )
     install ( FILES ${dll} DESTINATION bin)
   endforeach()
-endif ()
-
-# Copy Linux runtime libraries (resolved from linked dependencies) to libs folder
-if ( UNIX AND NOT APPLE )
-  set ( runtime_libs_dir "${EXECUTABLE_OUTPUT_PATH}/libs" )
-  add_custom_command ( TARGET openxcom
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${runtime_libs_dir}
-    COMMAND /bin/sh -c "ldd \"$<TARGET_FILE:openxcom>\" | grep -E '=> /|^/' | sed -E 's/.*=> (\\/[^ ]+).*/\\1/;t;s#^(\\/[^ ]+).*#\\1#' | grep -Ev '/(libc\\.so(\\.|$)|libm\\.so(\\.|$)|libdl\\.so(\\.|$)|libpthread\\.so(\\.|$)|librt\\.so(\\.|$)|ld-linux[^/]*\\.so(\\.|$)|libstdc\\+\\+\\.so(\\.|$)|libgcc_s\\.so(\\.|$))' | sort -u | while read -r lib; do ${CMAKE_COMMAND} -E copy_if_different \"$$lib\" \"${runtime_libs_dir}/\"; done"
-    VERBATIM )
 endif ()
 
 #Setup source groups for IDE
