@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 jobs:
   linux-arm64:
-    name: Linux
+    name: Linux-aarch64
     runs-on: ubuntu-22.04-arm
     steps:
       - name: Checkout
@@ -36,17 +36,11 @@ jobs:
           make -j$(nproc)
           make install DESTDIR=openxcom-bin
 
-      - name: Generate AppImage
+      - name: Create .tar.gz archive
         run: |
           rm -rf openxcom-bin/usr/share/openxcom/UFO
           rm -rf openxcom-bin/usr/share/openxcom/TFTD
-          linuxdeploy-arm64.AppImage --appdir AppDir --output appimage
-          mkdir artifacts
-          mv OpenXcom-arm64.AppImage artifacts/${{ env.FILENAME }}-arm64.AppImage
-          tar -czvf artifacts/openxcom-bin-arm64.tar.gz openxcom-bin/  
-
-      - name: Create .tar.gz archive
-        run: tar -czvf ${{ env.FILENAME }}_linux-arm64.tar.gz -C artifacts .
+          tar -czvf ${{ env.FILENAME }}_linux-arm64.tar.gz -C openxcom-bin .
 
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
@@ -55,7 +49,7 @@ jobs:
           path: ${{ env.FILENAME }}_linux-arm64.tar.gz
 
   linux-arm:
-    name: Linux
+    name: Linux-ARM
     runs-on: ubuntu-22.04-arm
     steps:
       - name: Checkout
@@ -77,7 +71,7 @@ jobs:
       - name: Install packages
         run: |
           sudo apt-get update
-          sudo apt-get -yq install gcc-arm-linux-gnueabi
+          sudo apt-get -yq install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
           sudo apt-get -yq install libsdl1.2-compat-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libsdl-gfx1.2-dev
 
       - name: Compile source code
@@ -86,17 +80,11 @@ jobs:
           make -j$(nproc)
           make install DESTDIR=openxcom-bin
 
-      - name: Generate AppImage
-        run: |
+      - name: Create .tar.gz archive
+        run: | 
           rm -rf openxcom-bin/usr/share/openxcom/UFO
           rm -rf openxcom-bin/usr/share/openxcom/TFTD
-          linuxdeploy-arm.AppImage --appdir AppDir --output appimage
-          mkdir artifacts
-          mv OpenXcom-arm.AppImage artifacts/${{ env.FILENAME }}-arm.AppImage
-          tar -czvf artifacts/openxcom-bin-arm.tar.gz openxcom-bin/  
-
-      - name: Create .tar.gz archive
-        run: tar -czvf ${{ env.FILENAME }}_linux.tar.gz -C artifacts .
+          tar -czvf ${{ env.FILENAME }}_linux-arm.tar.gz -C openxcom-bin .
 
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
