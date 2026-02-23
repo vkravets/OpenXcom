@@ -44,9 +44,9 @@ jobs:
           file openxcom-bin/usr/bin/openxcom 
           ldd openxcom-bin/usr/bin/openxcom
 
-          ldd openxcom-bin/usr/bin/openxcom | awk 'NF == 4 { system("echo cp " $3 " openxcom-libs") }'
+          ldd openxcom-bin/usr/bin/openxcom | awk 'NF == 4 { system("cp " $3 " openxcom-libs") }'
 
-          tar -czvf ${{ env.FILENAME }}_linux-arm64.tar.gz openxcom-bin openxcom-libs .
+          tar -czvf ${{ env.FILENAME }}_linux-arm64.tar.gz openxcom-bin openxcom-libs
 
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
