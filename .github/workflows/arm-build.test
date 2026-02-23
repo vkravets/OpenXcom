@@ -1,0 +1,106 @@
+name: arm-builds
+on:
+  push:
+    branches:
+      - oxce-plus
+  workflow_dispatch:
+jobs:
+  linux-arm64:
+    name: Linux
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup environment
+        run: |
+          echo "DATEFILE=`git log -1 --date=format:\"%Y_%m_%d_%H%M\" --format=\"%ad\"`" >> $GITHUB_ENV
+          echo "DATEVERSION=`git log -1 --date=format:\"%Y-%m-%d %H:%M\" --format=\"%ad\"`" >> $GITHUB_ENV
+          echo "CMAKE_BUILD_PARALLEL_LEVEL=`getconf _NPROCESSORS_ONLN 2>/dev/null || getconf NPROCESSORS_ONLN 2>/dev/null || echo 2`" >> $GITHUB_ENV
+
+      - name: Setup version info
+        run: |
+          sed -i "s/OPENXCOM_VERSION_GIT \"[^\"]*\"/OPENXCOM_VERSION_GIT \" git ${{ env.DATEVERSION }}\"/" src/version.h
+          echo "FILENAME=oxce_git_${{ env.DATEFILE }}" >> $GITHUB_ENV
+
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install libsdl1.2-compat-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libsdl-gfx1.2-dev
+
+      - name: Compile source code
+        run: |
+          cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          make -j$(nproc)
+          make install DESTDIR=openxcom-bin
+
+      - name: Generate AppImage
+        run: |
+          rm -rf openxcom-bin/usr/share/openxcom/UFO
+          rm -rf openxcom-bin/usr/share/openxcom/TFTD
+          linuxdeploy-arm64.AppImage --appdir AppDir --output appimage
+          mkdir artifacts
+          mv OpenXcom-arm64.AppImage artifacts/${{ env.FILENAME }}-arm64.AppImage
+          tar -czvf artifacts/openxcom-bin-arm64.tar.gz openxcom-bin/  
+
+      - name: Create .tar.gz archive
+        run: tar -czvf ${{ env.FILENAME }}_linux-arm64.tar.gz -C artifacts .
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FILENAME }}_linux-arm64.tar.gz
+          path: ${{ env.FILENAME }}_linux-arm64.tar.gz
+
+  linux-arm:
+    name: Linux
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup environment
+        run: |
+          echo "DATEFILE=`git log -1 --date=format:\"%Y_%m_%d_%H%M\" --format=\"%ad\"`" >> $GITHUB_ENV
+          echo "DATEVERSION=`git log -1 --date=format:\"%Y-%m-%d %H:%M\" --format=\"%ad\"`" >> $GITHUB_ENV
+          echo "CMAKE_BUILD_PARALLEL_LEVEL=`getconf _NPROCESSORS_ONLN 2>/dev/null || getconf NPROCESSORS_ONLN 2>/dev/null || echo 2`" >> $GITHUB_ENV
+
+      - name: Setup version info
+        run: |
+          sed -i "s/OPENXCOM_VERSION_GIT \"[^\"]*\"/OPENXCOM_VERSION_GIT \" git ${{ env.DATEVERSION }}\"/" src/version.h
+          echo "FILENAME=oxce_git_${{ env.DATEFILE }}" >> $GITHUB_ENV
+
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get -yq install gcc-arm-linux-gnueabi
+          sudo apt-get -yq install libsdl1.2-compat-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libsdl-gfx1.2-dev
+
+      - name: Compile source code
+        run: |
+          cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_C_COMPILER=/usr/bin/arm-linux-gnueabi-gcc -DCMAKE_CXX_COMPILER=/usr/bin/arm-linux-gnueabi-g++
+          make -j$(nproc)
+          make install DESTDIR=openxcom-bin
+
+      - name: Generate AppImage
+        run: |
+          rm -rf openxcom-bin/usr/share/openxcom/UFO
+          rm -rf openxcom-bin/usr/share/openxcom/TFTD
+          linuxdeploy-arm.AppImage --appdir AppDir --output appimage
+          mkdir artifacts
+          mv OpenXcom-arm.AppImage artifacts/${{ env.FILENAME }}-arm.AppImage
+          tar -czvf artifacts/openxcom-bin-arm.tar.gz openxcom-bin/  
+
+      - name: Create .tar.gz archive
+        run: tar -czvf ${{ env.FILENAME }}_linux.tar.gz -C artifacts .
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FILENAME }}_linux-arm.tar.gz
+          path: ${{ env.FILENAME }}_linux-arm.tar.gz
+
