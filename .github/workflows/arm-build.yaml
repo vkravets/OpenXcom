@@ -30,7 +30,7 @@ jobs:
           sudo apt update
           # sudo apt -yq --no-install-suggests --no-install-recommends install libsdl1.2-compat-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libsdl-gfx1.2-dev
           # sudo apt build-dep libsdl2 libsdl1.2-compat libsdl-mixer1.2 libsdl-image1.2 libsdl-gfx1.2
-          sudo apt -yq install libjack-dev libogg-devv libwebp-dev libopus-dev libflac-dev libtiff-dev libjpeg-dev libpng-dev
+          sudo apt -yq install libjack-dev libogg-dev libwebp-dev libopus-dev libflac-dev libtiff-dev libjpeg-dev libpng-dev
 
       - name: Compile SDL2 from source
         run: |
