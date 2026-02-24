@@ -74,11 +74,61 @@ jobs:
           sed -i "s/OPENXCOM_VERSION_GIT \"[^\"]*\"/OPENXCOM_VERSION_GIT \" git ${{ env.DATEVERSION }}\"/" src/version.h
           echo "FILENAME=oxce_git_${{ env.DATEFILE }}" >> $GITHUB_ENV
 
-      - name: Install packages
+      # - name: Install packages
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get -yq --no-install-suggests --no-install-recommends install libsdl1.2-compat-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libsdl-gfx1.2-dev
+      - name: Compile SDL2 from source
         run: |
-          sudo apt-get update
-          sudo apt-get -yq --no-install-suggests --no-install-recommends install libsdl1.2-compat-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libsdl-gfx1.2-dev
+          wget https://github.com/libsdl-org/SDL/releases/download/release-2.32.8/SDL2-2.32.8.tar.gz
+          tar -xzf SDL2-2.32.8.tar.gz
+          cd SDL2-2.32.8
+          cmake -DCMAKE_BUILD_TYPE=Release .
+          make -j$(nproc)
+          sudo make install
+          rm -rf SDL2-2.32.8*
 
+      - name: Compile SDL1.2-compat from source
+        run: |
+          wget https://github.com/libsdl-org/sdl12-compat/releases/download/release-1.2.74/sdl12-compat-1.2.74.tar.gz
+          tar -xzf sdl12-compat-1.2.74.tar.gz
+          cd sdl12-compat-1.2.74
+          cmake -DCMAKE_BUILD_TYPE=Release .
+          ./configure --prefix=/usr
+          make -j$(nproc)
+          sudo make install
+          rm -rf sdl12-compat-1.2.74*
+          
+      - name: Compile SDL_mixer from source
+        run: |
+          wget https://github.com/libsdl-org/SDL_mixer/archive/refs/heads/SDL-1.2.zip
+          unzip SDL-1.2.zip
+          cd SDL_mixer-SDL-1.2
+          cmake -DCMAKE_BUILD_TYPE=Release .
+          make -j$(nproc)
+          sudo make install
+          rm -rf SDL_mixer-SDL-1.2*
+
+      - name: Compile SDL_gfx from source
+        run: |
+          wget https://www.ferzkopp.net/Software/SDL_gfx-2.0/SDL_gfx-2.0.27.tar.gz
+          tar -xzf SDL_gfx-2.0.27.tar.gz
+          cd SDL_gfx-2.0.27
+          cmake -DCMAKE_BUILD_TYPE=Release .
+          make -j$(nproc)
+          sudo make install
+          rm -rf SDL_gfx-2.0.27*
+
+      - name: Compile SDL_image from source
+        run: |
+          wget https://github.com/libsdl-org/SDL_image/archive/refs/heads/SDL-1.2.zip
+          unzip SDL-1.2.zip
+          cd SDL_image-SDL-1.2
+          cmake -DCMAKE_BUILD_TYPE=Release .
+          make -j$(nproc)
+          sudo make install
+          rm -rf SDL_image-SDL-1.2*
+          
       - name: Compile source code
         run: |
           cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
