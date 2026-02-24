@@ -25,10 +25,12 @@ jobs:
           sed -i "s/OPENXCOM_VERSION_GIT \"[^\"]*\"/OPENXCOM_VERSION_GIT \" git ${{ env.DATEVERSION }}\"/" src/version.h
           echo "FILENAME=oxce_git_${{ env.DATEFILE }}" >> $GITHUB_ENV
 
-      # - name: Install packages
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get -yq --no-install-suggests --no-install-recommends install libsdl1.2-compat-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libsdl-gfx1.2-dev
+      - name: Install packages
+        run: |
+          sudo apt update
+          # sudo apt -yq --no-install-suggests --no-install-recommends install libsdl1.2-compat-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libsdl-gfx1.2-dev
+          sudo apt build-dep libsdl2 libsdl1.2-compat libsdl-mixer1.2 libsdl-image1.2 libsdl-gfx1.2
+
       - name: Compile SDL2 from source
         run: |
           mkdir -p /tmp/sdl2
@@ -59,8 +61,7 @@ jobs:
           wget https://github.com/libsdl-org/SDL_mixer/archive/refs/heads/SDL-1.2.zip
           unzip SDL-1.2.zip
           cd SDL_mixer-SDL-1.2
-          cmake -B build -S /tmp/sdl2/SDL_mixer-SDL-1.2 -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release .
-          cd build
+          ./configure --prefix=/usr
           make -j$(nproc)
           sudo make install
 
