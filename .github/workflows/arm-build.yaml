@@ -25,10 +25,65 @@ jobs:
           sed -i "s/OPENXCOM_VERSION_GIT \"[^\"]*\"/OPENXCOM_VERSION_GIT \" git ${{ env.DATEVERSION }}\"/" src/version.h
           echo "FILENAME=oxce_git_${{ env.DATEFILE }}" >> $GITHUB_ENV
 
-      - name: Install packages
+      # - name: Install packages
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get -yq --no-install-suggests --no-install-recommends install libsdl1.2-compat-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libsdl-gfx1.2-dev
+      - name: Compile SDL2 from source
         run: |
-          sudo apt-get update
-          sudo apt-get -yq --no-install-suggests --no-install-recommends install libsdl1.2-compat-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libsdl-gfx1.2-dev
+          mkdir -p /tmp/sdl2
+          cd /tmp/sdl2
+          wget https://github.com/libsdl-org/SDL/releases/download/release-2.32.8/SDL2-2.32.8.tar.gz
+          tar -xzf SDL2-2.32.8.tar.gz
+          cd SDL2-2.32.8
+          cmake -DCMAKE_BUILD_TYPE=Release .
+          make -j$(nproc)
+          sudo make install
+
+      - name: Compile SDL1.2-compat from source
+        run: |
+          mkdir -p /tmp/sdl12-compat
+          cd /tmp/sdl12-compat
+          wget https://github.com/libsdl-org/sdl12-compat/releases/download/release-1.2.74/sdl12-compat-1.2.74.tar.gz
+          tar -xzf sdl12-compat-1.2.74.tar.gz
+          cd sdl12-compat-1.2.74
+          cmake -DCMAKE_BUILD_TYPE=Release .
+          ./configure --prefix=/usr
+          make -j$(nproc)
+          sudo make install
+          
+      - name: Compile SDL_mixer from source
+        run: |
+          mkdir -p /tmp/sdl2
+          cd /tmp/sdl2
+          wget https://github.com/libsdl-org/SDL_mixer/archive/refs/heads/SDL-1.2.zip
+          unzip SDL-1.2.zip
+          cd SDL_mixer-SDL-1.2
+          cmake -DCMAKE_BUILD_TYPE=Release .
+          make -j$(nproc)
+          sudo make install
+
+      - name: Compile SDL_gfx from source
+        run: |
+          mkdir -p /tmp/sdl_gfx
+          cd /tmp/sdl_gfx
+          wget https://www.ferzkopp.net/Software/SDL_gfx-2.0/SDL_gfx-2.0.27.tar.gz
+          tar -xzf SDL_gfx-2.0.27.tar.gz
+          cd SDL_gfx-2.0.27
+          cmake -DCMAKE_BUILD_TYPE=Release .
+          make -j$(nproc)
+          sudo make install
+
+      - name: Compile SDL_image from source
+        run: |
+          mkdir -p /tmp/sdl_image
+          cd /tmp/sdl_image
+          wget https://github.com/libsdl-org/SDL_image/archive/refs/heads/SDL-1.2.zip
+          unzip SDL-1.2.zip
+          cd SDL_image-SDL-1.2
+          cmake -DCMAKE_BUILD_TYPE=Release .
+          make -j$(nproc)
+          sudo make install
 
       - name: Compile source code
         run: |
@@ -54,101 +109,46 @@ jobs:
           name: ${{ env.FILENAME }}_linux-arm64.tar.gz
           path: ${{ env.FILENAME }}_linux-arm64.tar.gz
 
-  linux:
-    name: Linux
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # linux:
+  #   name: Linux
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Setup environment
-        run: |
-          echo "DATEFILE=`git log -1 --date=format:\"%Y_%m_%d_%H%M\" --format=\"%ad\"`" >> $GITHUB_ENV
-          echo "DATEVERSION=`git log -1 --date=format:\"%Y-%m-%d %H:%M\" --format=\"%ad\"`" >> $GITHUB_ENV
-          echo "CMAKE_BUILD_PARALLEL_LEVEL=`getconf _NPROCESSORS_ONLN 2>/dev/null || getconf NPROCESSORS_ONLN 2>/dev/null || echo 2`" >> $GITHUB_ENV
+  #     - name: Setup environment
+  #       run: |
+  #         echo "DATEFILE=`git log -1 --date=format:\"%Y_%m_%d_%H%M\" --format=\"%ad\"`" >> $GITHUB_ENV
+  #         echo "DATEVERSION=`git log -1 --date=format:\"%Y-%m-%d %H:%M\" --format=\"%ad\"`" >> $GITHUB_ENV
+  #         echo "CMAKE_BUILD_PARALLEL_LEVEL=`getconf _NPROCESSORS_ONLN 2>/dev/null || getconf NPROCESSORS_ONLN 2>/dev/null || echo 2`" >> $GITHUB_ENV
 
-      - name: Setup version info
-        run: |
-          sed -i "s/OPENXCOM_VERSION_GIT \"[^\"]*\"/OPENXCOM_VERSION_GIT \" git ${{ env.DATEVERSION }}\"/" src/version.h
-          echo "FILENAME=oxce_git_${{ env.DATEFILE }}" >> $GITHUB_ENV
-
-      # - name: Install packages
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get -yq --no-install-suggests --no-install-recommends install libsdl1.2-compat-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libsdl-gfx1.2-dev
-      - name: Compile SDL2 from source
-        run: |
-          wget https://github.com/libsdl-org/SDL/releases/download/release-2.32.8/SDL2-2.32.8.tar.gz
-          tar -xzf SDL2-2.32.8.tar.gz
-          cd SDL2-2.32.8
-          cmake -DCMAKE_BUILD_TYPE=Release .
-          make -j$(nproc)
-          sudo make install
-          rm -rf SDL2-2.32.8*
-
-      - name: Compile SDL1.2-compat from source
-        run: |
-          wget https://github.com/libsdl-org/sdl12-compat/releases/download/release-1.2.74/sdl12-compat-1.2.74.tar.gz
-          tar -xzf sdl12-compat-1.2.74.tar.gz
-          cd sdl12-compat-1.2.74
-          cmake -DCMAKE_BUILD_TYPE=Release .
-          ./configure --prefix=/usr
-          make -j$(nproc)
-          sudo make install
-          rm -rf sdl12-compat-1.2.74*
+  #     - name: Setup version info
+  #       run: |
+  #         sed -i "s/OPENXCOM_VERSION_GIT \"[^\"]*\"/OPENXCOM_VERSION_GIT \" git ${{ env.DATEVERSION }}\"/" src/version.h
+  #         echo "FILENAME=oxce_git_${{ env.DATEFILE }}" >> $GITHUB_ENV
           
-      - name: Compile SDL_mixer from source
-        run: |
-          wget https://github.com/libsdl-org/SDL_mixer/archive/refs/heads/SDL-1.2.zip
-          unzip SDL-1.2.zip
-          cd SDL_mixer-SDL-1.2
-          cmake -DCMAKE_BUILD_TYPE=Release .
-          make -j$(nproc)
-          sudo make install
-          rm -rf SDL_mixer-SDL-1.2*
+  #     - name: Compile source code
+  #       run: |
+  #         cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+  #         make -j$(nproc)
+  #         make install DESTDIR=openxcom-bin
 
-      - name: Compile SDL_gfx from source
-        run: |
-          wget https://www.ferzkopp.net/Software/SDL_gfx-2.0/SDL_gfx-2.0.27.tar.gz
-          tar -xzf SDL_gfx-2.0.27.tar.gz
-          cd SDL_gfx-2.0.27
-          cmake -DCMAKE_BUILD_TYPE=Release .
-          make -j$(nproc)
-          sudo make install
-          rm -rf SDL_gfx-2.0.27*
+  #     - name: Create .tar.gz archive
+  #       run: |
+  #         mkdir -p openxcom-libs
+  #         rm -rf openxcom-bin/usr/share/openxcom/UFO
+  #         rm -rf openxcom-bin/usr/share/openxcom/TFTD
+  #         file openxcom-bin/usr/bin/openxcom 
+  #         ldd openxcom-bin/usr/bin/openxcom
 
-      - name: Compile SDL_image from source
-        run: |
-          wget https://github.com/libsdl-org/SDL_image/archive/refs/heads/SDL-1.2.zip
-          unzip SDL-1.2.zip
-          cd SDL_image-SDL-1.2
-          cmake -DCMAKE_BUILD_TYPE=Release .
-          make -j$(nproc)
-          sudo make install
-          rm -rf SDL_image-SDL-1.2*
-          
-      - name: Compile source code
-        run: |
-          cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
-          make -j$(nproc)
-          make install DESTDIR=openxcom-bin
+  #         ldd openxcom-bin/usr/bin/openxcom | awk 'NF == 4 { system("cp " $3 " openxcom-libs") }'
 
-      - name: Create .tar.gz archive
-        run: |
-          mkdir -p openxcom-libs
-          rm -rf openxcom-bin/usr/share/openxcom/UFO
-          rm -rf openxcom-bin/usr/share/openxcom/TFTD
-          file openxcom-bin/usr/bin/openxcom 
-          ldd openxcom-bin/usr/bin/openxcom
+  #         tar -czvf ${{ env.FILENAME }}_linux.tar.gz openxcom-bin openxcom-libs
 
-          ldd openxcom-bin/usr/bin/openxcom | awk 'NF == 4 { system("cp " $3 " openxcom-libs") }'
-
-          tar -czvf ${{ env.FILENAME }}_linux.tar.gz openxcom-bin openxcom-libs
-
-      - name: Archive artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.FILENAME }}_linux.tar.gz
-          path: ${{ env.FILENAME }}_linux.tar.gz
+  #     - name: Archive artifacts
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: ${{ env.FILENAME }}_linux.tar.gz
+  #         path: ${{ env.FILENAME }}_linux.tar.gz
