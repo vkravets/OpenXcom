@@ -85,8 +85,7 @@ jobs:
           wget https://github.com/libsdl-org/SDL_image/archive/refs/heads/SDL-1.2.zip
           unzip SDL-1.2.zip
           cd SDL_image-SDL-1.2
-          cmake -B build -S /tmp/sdl_image/SDL_image-SDL-1.2 -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release .
-          cd build
+          ./configure --prefix=/usr
           make -j$(nproc)
           sudo make install
 
