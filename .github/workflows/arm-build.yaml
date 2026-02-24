@@ -30,7 +30,7 @@ jobs:
           sudo apt update
           # sudo apt -yq --no-install-suggests --no-install-recommends install libsdl1.2-compat-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libsdl-gfx1.2-dev
           # sudo apt build-dep libsdl2 libsdl1.2-compat libsdl-mixer1.2 libsdl-image1.2 libsdl-gfx1.2
-          sudo apt -yq install libjack0 libogg0 libwebp7 libopus0 libflac8 libtiff5 libjpeg8 libpng16-16
+          sudo apt -yq install libjack-dev libogg-devv libwebp-dev libopus-dev libflac-dev libtiff-dev libjpeg-dev libpng-dev
 
       - name: Compile SDL2 from source
         run: |
@@ -73,8 +73,7 @@ jobs:
           wget https://www.ferzkopp.net/Software/SDL_gfx-2.0/SDL_gfx-2.0.27.tar.gz
           tar -xzf SDL_gfx-2.0.27.tar.gz
           cd SDL_gfx-2.0.27
-          cmake -B build -S /tmp/sdl_gfx/SDL_gfx-2.0.27 -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release .
-          cd build
+          ./configure --prefix=/usr
           make -j$(nproc)
           sudo make install
 
