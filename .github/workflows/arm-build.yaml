@@ -47,9 +47,8 @@ jobs:
           wget https://github.com/libsdl-org/sdl12-compat/releases/download/release-1.2.74/sdl12-compat-1.2.74.tar.gz
           tar -xzf sdl12-compat-1.2.74.tar.gz
           cd sdl12-compat-1.2.74
-          cmake -B build -S /tmp/sdl12-compat/sdl12-compat-1.2.74 -DCMAKE_BUILD_TYPE=Release .
+          cmake -B build -S /tmp/sdl12-compat/sdl12-compat-1.2.74 -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release .
           cd build
-          ./configure --prefix=/usr
           make -j$(nproc)
           sudo make install
           
@@ -60,7 +59,7 @@ jobs:
           wget https://github.com/libsdl-org/SDL_mixer/archive/refs/heads/SDL-1.2.zip
           unzip SDL-1.2.zip
           cd SDL_mixer-SDL-1.2
-          cmake -B build -S /tmp/sdl2/SDL_mixer-SDL-1.2 -DCMAKE_BUILD_TYPE=Release .
+          cmake -B build -S /tmp/sdl2/SDL_mixer-SDL-1.2 -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release .
           cd build
           make -j$(nproc)
           sudo make install
@@ -72,7 +71,7 @@ jobs:
           wget https://www.ferzkopp.net/Software/SDL_gfx-2.0/SDL_gfx-2.0.27.tar.gz
           tar -xzf SDL_gfx-2.0.27.tar.gz
           cd SDL_gfx-2.0.27
-          cmake -B build -S /tmp/sdl_gfx/SDL_gfx-2.0.27 -DCMAKE_BUILD_TYPE=Release .
+          cmake -B build -S /tmp/sdl_gfx/SDL_gfx-2.0.27 -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release .
           cd build
           make -j$(nproc)
           sudo make install
@@ -84,7 +83,7 @@ jobs:
           wget https://github.com/libsdl-org/SDL_image/archive/refs/heads/SDL-1.2.zip
           unzip SDL-1.2.zip
           cd SDL_image-SDL-1.2
-          cmake -B build -S /tmp/sdl_image/SDL_image-SDL-1.2 -DCMAKE_BUILD_TYPE=Release .
+          cmake -B build -S /tmp/sdl_image/SDL_image-SDL-1.2 -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release .
           cd build
           make -j$(nproc)
           sudo make install
