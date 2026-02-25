@@ -91,6 +91,7 @@ jobs:
 
       - name: Compile source code
         run: |
+          git apply rocknix_keyboard_layout.patch
           cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
           make -j$(nproc)
           make install DESTDIR=openxcom-bin

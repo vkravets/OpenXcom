@@ -1,0 +1,112 @@
+diff --git a/src/Engine/Options.cpp b/src/Engine/Options.cpp
+index 9657dde58..f90232a62 100644
+--- a/src/Engine/Options.cpp
++++ b/src/Engine/Options.cpp
+@@ -101,7 +101,7 @@ void createOptionsOXC()
+ #else
+ 	_info.push_back(OptionInfo(OPTION_OXC, "displayWidth", &displayWidth, Screen::ORIGINAL_WIDTH*2));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "displayHeight", &displayHeight, Screen::ORIGINAL_HEIGHT*2));
+-	_info.push_back(OptionInfo(OPTION_OXC, "fullscreen", &fullscreen, false));
++	_info.push_back(OptionInfo(OPTION_OXC, "fullscreen", &fullscreen, true));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "asyncBlit", &asyncBlit, true));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyboardMode", (int*)&keyboardMode, KEYBOARD_ON));
+ #endif
+@@ -291,22 +291,22 @@ void createControlsOXC()
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoRight", &keyGeoRight, SDLK_RIGHT, "STR_ROTATE_RIGHT", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoUp", &keyGeoUp, SDLK_UP, "STR_ROTATE_UP", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoDown", &keyGeoDown, SDLK_DOWN, "STR_ROTATE_DOWN", "STR_GEOSCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoZoomIn", &keyGeoZoomIn, SDLK_PLUS, "STR_ZOOM_IN", "STR_GEOSCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoZoomOut", &keyGeoZoomOut, SDLK_MINUS, "STR_ZOOM_OUT", "STR_GEOSCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoSpeed1", &keyGeoSpeed1, SDLK_1, "STR_5_SECONDS", "STR_GEOSCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoZoomIn", &keyGeoZoomIn, SDLK_PAGEDOWN, "STR_ZOOM_IN", "STR_GEOSCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoZoomOut", &keyGeoZoomOut, SDLK_PAGEUP, "STR_ZOOM_OUT", "STR_GEOSCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoSpeed1", &keyGeoSpeed1, SDLK_r, "STR_5_SECONDS", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoSpeed2", &keyGeoSpeed2, SDLK_2, "STR_1_MINUTE", "STR_GEOSCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoSpeed3", &keyGeoSpeed3, SDLK_3, "STR_5_MINUTES", "STR_GEOSCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoSpeed4", &keyGeoSpeed4, SDLK_4, "STR_30_MINUTES", "STR_GEOSCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoSpeed3", &keyGeoSpeed3, SDLK_n, "STR_5_MINUTES", "STR_GEOSCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoSpeed4", &keyGeoSpeed4, SDLK_l, "STR_30_MINUTES", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoSpeed5", &keyGeoSpeed5, SDLK_5, "STR_1_HOUR", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoSpeed6", &keyGeoSpeed6, SDLK_6, "STR_1_DAY", "STR_GEOSCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoIntercept", &keyGeoIntercept, SDLK_i, "STR_INTERCEPT", "STR_GEOSCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoIntercept", &keyGeoIntercept, SDLK_t, "STR_INTERCEPT", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoBases", &keyGeoBases, SDLK_b, "STR_BASES", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoGraphs", &keyGeoGraphs, SDLK_g, "STR_GRAPHS", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoUfopedia", &keyGeoUfopedia, SDLK_u, "STR_UFOPAEDIA_UC", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoOptions", &keyGeoOptions, SDLK_ESCAPE, "STR_OPTIONS_UC", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoFunding", &keyGeoFunding, SDLK_f, "STR_FUNDING_UC", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoToggleDetail", &keyGeoToggleDetail, SDLK_TAB, "STR_TOGGLE_COUNTRY_DETAIL", "STR_GEOSCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoToggleRadar", &keyGeoToggleRadar, SDLK_r, "STR_TOGGLE_RADAR_RANGES", "STR_GEOSCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXC, "keyGeoToggleRadar", &keyGeoToggleRadar, SDLK_UNKNOWN, "STR_TOGGLE_RADAR_RANGES", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBaseSelect1", &keyBaseSelect1, SDLK_1, "STR_SELECT_BASE_1", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBaseSelect2", &keyBaseSelect2, SDLK_2, "STR_SELECT_BASE_2", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBaseSelect3", &keyBaseSelect3, SDLK_3, "STR_SELECT_BASE_3", "STR_GEOSCAPE"));
+@@ -323,18 +323,18 @@ void createControlsOXC()
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleLevelDown", &keyBattleLevelDown, SDLK_PAGEDOWN, "STR_VIEW_LEVEL_BELOW", "STR_BATTLESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleCenterUnit", &keyBattleCenterUnit, SDLK_HOME, "STR_CENTER_SELECTED_UNIT", "STR_BATTLESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBattlePrevUnit", &keyBattlePrevUnit, SDLK_UNKNOWN, "STR_PREVIOUS_UNIT", "STR_BATTLESCAPE")); // different default in OXCE
+-	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleNextUnit", &keyBattleNextUnit, SDLK_TAB, "STR_NEXT_UNIT", "STR_BATTLESCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleNextUnit", &keyBattleNextUnit, SDLK_n, "STR_NEXT_UNIT", "STR_BATTLESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleDeselectUnit", &keyBattleDeselectUnit, SDLK_BACKSLASH, "STR_DESELECT_UNIT", "STR_BATTLESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleUseLeftHand", &keyBattleUseLeftHand, SDLK_q, "STR_USE_LEFT_HAND", "STR_BATTLESCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleUseRightHand", &keyBattleUseRightHand, SDLK_e, "STR_USE_RIGHT_HAND", "STR_BATTLESCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleInventory", &keyBattleInventory, SDLK_i, "STR_INVENTORY", "STR_BATTLESCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleUseRightHand", &keyBattleUseRightHand, SDLK_t, "STR_USE_RIGHT_HAND", "STR_BATTLESCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleInventory", &keyBattleInventory, SDLK_b, "STR_INVENTORY", "STR_BATTLESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleMap", &keyBattleMap, SDLK_m, "STR_MINIMAP", "STR_BATTLESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleOptions", &keyBattleOptions, SDLK_ESCAPE, "STR_OPTIONS", "STR_BATTLESCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleEndTurn", &keyBattleEndTurn, SDLK_BACKSPACE, "STR_END_TURN", "STR_BATTLESCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleEndTurn", &keyBattleEndTurn, SDLK_r, "STR_END_TURN", "STR_BATTLESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleAbort", &keyBattleAbort, SDLK_a, "STR_ABORT_MISSION", "STR_BATTLESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleStats", &keyBattleStats, SDLK_s, "STR_UNIT_STATS", "STR_BATTLESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleKneel", &keyBattleKneel, SDLK_k, "STR_KNEEL", "STR_BATTLESCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleReload", &keyBattleReload, SDLK_r, "STR_RELOAD", "STR_BATTLESCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleReload", &keyBattleReload, SDLK_UNKNOWN, "STR_RELOAD", "STR_BATTLESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBattlePersonalLighting", &keyBattlePersonalLighting, SDLK_l, "STR_TOGGLE_PERSONAL_LIGHTING", "STR_BATTLESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleReserveNone", &keyBattleReserveNone, SDLK_F1, "STR_DONT_RESERVE_TIME_UNITS", "STR_BATTLESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXC, "keyBattleReserveSnap", &keyBattleReserveSnap, SDLK_F2, "STR_RESERVE_TIME_UNITS_FOR_SNAP_SHOT", "STR_BATTLESCAPE"));
+@@ -504,9 +504,9 @@ void createControlsOXCE()
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyInstaSave", &keyInstaSave, SDLK_F6, "STR_INSTA_SAVE", "STR_GENERAL"));
+ 
+ 	// OXCE controls geoscape
+-	_info.push_back(OptionInfo(OPTION_OXCE, "keyGeoUfoTracker", &keyGeoUfoTracker, SDLK_t, "STR_UFO_TRACKER", "STR_GEOSCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXCE, "keyGeoUfoTracker", &keyGeoUfoTracker, SDLK_UNKNOWN, "STR_UFO_TRACKER", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyGeoTechTreeViewer", &keyGeoTechTreeViewer, SDLK_q, "STR_TECH_TREE_VIEWER", "STR_GEOSCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXCE, "keyGeoGlobalProduction", &keyGeoGlobalProduction, SDLK_p, "STR_PRODUCTION_OVERVIEW", "STR_GEOSCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXCE, "keyGeoGlobalProduction", &keyGeoGlobalProduction, SDLK_UNKNOWN, "STR_PRODUCTION_OVERVIEW", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyGeoGlobalResearch", &keyGeoGlobalResearch, SDLK_c, "STR_RESEARCH_OVERVIEW", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyGeoGlobalAlienContainment", &keyGeoGlobalAlienContainment, SDLK_j, "STR_PRISONER_OVERVIEW", "STR_GEOSCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyGeoDailyPilotExperience", &keyGeoDailyPilotExperience, SDLK_e, "STR_DAILY_PILOT_EXPERIENCE", "STR_GEOSCAPE"));
+@@ -514,16 +514,16 @@ void createControlsOXCE()
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyGraphsZoomOut", &keyGraphsZoomOut, SDLK_KP_MINUS, "STR_GRAPHS_ZOOM_OUT", "STR_GEOSCAPE"));
+ 
+ 	// OXCE controls basescape
+-	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapeBuildNewBase", &keyBasescapeBuildNewBase, SDLK_n, "STR_BUILD_NEW_BASE_UC", "STR_BASESCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapeBuildNewBase", &keyBasescapeBuildNewBase, SDLK_UNKNOWN, "STR_BUILD_NEW_BASE_UC", "STR_BASESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapeBaseInformation", &keyBasescapeBaseInfo, SDLK_i, "STR_BASE_INFORMATION", "STR_BASESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapeSoldiers", &keyBasescapeSoldiers, SDLK_s, "STR_SOLDIERS_UC", "STR_BASESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapeEquipCraft", &keyBasescapeCrafts, SDLK_e, "STR_EQUIP_CRAFT", "STR_BASESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapeBuildFacilities", &keyBasescapeFacilities, SDLK_f, "STR_BUILD_FACILITIES", "STR_BASESCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapeResearch", &keyBasescapeResearch, SDLK_r, "STR_RESEARCH", "STR_BASESCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapeResearch", &keyBasescapeResearch, SDLK_UNKNOWN, "STR_RESEARCH", "STR_BASESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapeManufacture", &keyBasescapeManufacture, SDLK_m, "STR_MANUFACTURE", "STR_BASESCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapeTransfer", &keyBasescapeTransfer, SDLK_t, "STR_TRANSFER_UC", "STR_BASESCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapePurchase", &keyBasescapePurchase, SDLK_p, "STR_PURCHASE_RECRUIT", "STR_BASESCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapeSell", &keyBasescapeSell, SDLK_l, "STR_SELL_SACK_UC", "STR_BASESCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapeTransfer", &keyBasescapeTransfer, SDLK_UNKNOWN, "STR_TRANSFER_UC", "STR_BASESCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapePurchase", &keyBasescapePurchase, SDLK_UNKNOWN, "STR_PURCHASE_RECRUIT", "STR_BASESCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXCE, "keyBasescapeSell", &keyBasescapeSell, SDLK_UNKNOWN, "STR_SELL_SACK_UC", "STR_BASESCAPE"));
+ 
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyRemoveSoldiersFromTraining", &keyRemoveSoldiersFromTraining, SDLK_x, "STR_REMOVE_SOLDIERS_FROM_TRAINING", "STR_BASESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyAddSoldiersToTraining", &keyAddSoldiersToTraining, SDLK_z, "STR_ADD_SOLDIERS_TO_TRAINING", "STR_BASESCAPE"));
+@@ -539,8 +539,8 @@ void createControlsOXCE()
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyInventorySave", &keyInventorySave, SDLK_F5, "STR_SAVE_EQUIPMENT_TEMPLATE", "STR_BASESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyInventoryLoad", &keyInventoryLoad, SDLK_F9, "STR_LOAD_EQUIPMENT_TEMPLATE", "STR_BASESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyInvSavePersonalEquipment", &keyInvSavePersonalEquipment, SDLK_s, "STR_SAVE_PERSONAL_EQUIPMENT", "STR_BASESCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXCE, "keyInvLoadPersonalEquipment", &keyInvLoadPersonalEquipment, SDLK_l, "STR_LOAD_PERSONAL_EQUIPMENT", "STR_BASESCAPE"));
+-	_info.push_back(OptionInfo(OPTION_OXCE, "keyInvShowPersonalEquipment", &keyInvShowPersonalEquipment, SDLK_p, "STR_PERSONAL_EQUIPMENT", "STR_BASESCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXCE, "keyInvLoadPersonalEquipment", &keyInvLoadPersonalEquipment, SDLK_UNKNOWN, "STR_LOAD_PERSONAL_EQUIPMENT", "STR_BASESCAPE"));
++	_info.push_back(OptionInfo(OPTION_OXCE, "keyInvShowPersonalEquipment", &keyInvShowPersonalEquipment, SDLK_UNKNOWN, "STR_PERSONAL_EQUIPMENT", "STR_BASESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyInventoryArmor", &keyInventoryArmor, SDLK_a, "STR_INVENTORY_ARMOR", "STR_BASESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyInventoryAvatar", &keyInventoryAvatar, SDLK_m, "STR_INVENTORY_AVATAR", "STR_BASESCAPE"));
+ 	_info.push_back(OptionInfo(OPTION_OXCE, "keyInventoryDiaryLight", &keyInventoryDiaryLight, SDLK_d, "STR_INVENTORY_DIARY_LIGHT", "STR_BASESCAPE"));
