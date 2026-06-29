@@ -18,14 +18,22 @@
  */
 #include "TextEdit.h"
 #include <cmath>
+#include <SDL.h>
 #include "../Engine/Action.h"
 #include "../Engine/Font.h"
 #include "../Engine/Timer.h"
 #include "../Engine/Options.h"
+#include "../Engine/Game.h"
 #include "../fallthrough.h"
+#include "VirtualKeyboardState.h"
 
 namespace OpenXcom
 {
+
+bool TextEdit::isButtonHandled(Uint8 button)
+{
+	return button == SDL_BUTTON_LEFT || InteractiveSurface::isButtonHandled(button);
+}
 
 /**
  * Sets up a blank text edit with the specified size and position.
@@ -68,6 +76,16 @@ TextEdit::~TextEdit()
  */
 void TextEdit::handle(Action *action, State *state)
 {
+	if (action->getDetails()->type == SDL_USEREVENT &&
+		action->getDetails()->user.code == VirtualKeyboardState::TOGGLE_EVENT)
+	{
+		if (_visible && !_hidden && _isFocused && Options::keyboardMode == KEYBOARD_VIRTUAL &&
+			State::getGame()->isState(_state))
+		{
+			State::getGame()->pushState(new VirtualKeyboardState(this, _state->getPalette(), _state));
+		}
+		return;
+	}
 	InteractiveSurface::handle(action, state);
 	if (_isFocused && _modal && action->getDetails()->type == SDL_MOUSEBUTTONDOWN &&
 		(action->getAbsoluteXMouse() < getX() || action->getAbsoluteXMouse() >= getX() + getWidth() ||
@@ -75,6 +93,11 @@ void TextEdit::handle(Action *action, State *state)
 	{
 		setFocus(false);
 	}
+}
+
+bool TextEdit::isControllerEditable() const
+{
+	return _visible && !_hidden && _isFocused;
 }
 
 /**
@@ -326,7 +349,7 @@ void TextEdit::draw()
 	}
 
 	_text->blit(this->getSurface());
-	if (Options::keyboardMode == KEYBOARD_ON)
+	if (Options::keyboardMode == KEYBOARD_ON || Options::keyboardMode == KEYBOARD_VIRTUAL)
 	{
 		if (_isFocused && _blink)
 		{
@@ -506,7 +529,7 @@ void TextEdit::keyboardPress(Action *action, State *state)
 			break;
 		}
 	}
-	else if (Options::keyboardMode == KEYBOARD_ON)
+	else if (Options::keyboardMode == KEYBOARD_ON || Options::keyboardMode == KEYBOARD_VIRTUAL)
 	{
 		switch (action->getDetails()->key.keysym.sym)
 		{
@@ -589,12 +612,31 @@ void TextEdit::onChange(ActionHandler handler)
 }
 
 /**
-* Sets a function to be called every time ENTER is pressed.
-* @param handler Action handler.
-*/
+ * Sets a function to be called every time ENTER is pressed.
+ * @param handler Action handler.
+ */
 void TextEdit::onEnter(ActionHandler handler)
 {
 	_enter = handler;
+}
+
+/**
+ * Directly processes a key sent by the virtual on-screen keyboard.
+ * Uses the normal keyboard path so callbacks receive a valid action.
+ * @param sym SDL key symbol (used for special keys).
+ * @param unicode Unicode codepoint (used for printable characters).
+ */
+void TextEdit::typeVirtualKey(SDLKey sym, Uint16 unicode)
+{
+	SDL_Event event = {};
+	event.type = SDL_KEYDOWN;
+	event.key.state = SDL_PRESSED;
+	event.key.keysym.sym = sym;
+	event.key.keysym.mod = KMOD_NONE;
+	event.key.keysym.unicode = unicode;
+	Action action(&event, 1.0, 1.0, 0, 0);
+	action.setSender(this);
+	keyboardPress(&action, _state);
 }
 
 }

@@ -57,6 +57,8 @@ public:
 	Window(State *state, int width, int height, int x = 0, int y = 0, WindowPopup popup = POPUP_NONE);
 	/// Cleans up the window.
 	~Window();
+	/// Copies appearance without changing geometry, animation or ownership.
+	void copyStyle(const Window &source);
 	/// Sets the background surface.
 	void setBackground(const Surface *bg);
 	/// Sets the border color.

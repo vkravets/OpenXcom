@@ -512,8 +512,16 @@ void VideoState::init()
 		memcpy(pal, _game->getScreen()->getPalette(), sizeof(SDL_Color) * 256);
 		for (int i = FADE_STEPS; i > 0; --i)
 		{
+			SDL_PumpEvents();
 			SDL_Event event;
-			if (SDL_PollEvent(&event) && event.type == SDL_KEYDOWN) break;
+			bool skip = false;
+			unsigned int eventsProcessed = 0;
+			while (eventsProcessed++ < 256 && SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_ALLEVENTS) > 0)
+			{
+				if (FlcPlayer::isSkipEvent(event))
+					skip = true;
+			}
+			if (skip) break;
 			for (int color = 0; color < 256; ++color)
 			{
 				pal2[color].r = (((int)pal[color].r) * i) / 20;

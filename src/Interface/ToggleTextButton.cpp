@@ -24,6 +24,11 @@
 namespace OpenXcom
 {
 
+bool ToggleTextButton::isButtonHandled(Uint8 button)
+{
+	return button == SDL_BUTTON_LEFT || button == SDL_BUTTON_RIGHT || TextButton::isButtonHandled(button);
+}
+
 ToggleTextButton::ToggleTextButton(int width, int height, int x, int y) : TextButton(width, height, x, y), _originalColor(-1), _invertedColor(-1), _fakeGroup(0)
 {
 	_isPressed = false;

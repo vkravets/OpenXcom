@@ -35,6 +35,7 @@ protected:
 	Uint8 _color;
 	ImageButton **_group;
 	bool _inverted;
+	bool isButtonHandled(Uint8 button = 0) override;
 public:
 	/// Creates a new image button with the specified size and position.
 	ImageButton(int width, int height, int x = 0, int y = 0);

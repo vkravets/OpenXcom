@@ -19,6 +19,7 @@
  */
 #include <string>
 #include <vector>
+#include <map>
 #include "OptionInfo.h"
 #include "ModInfo.h"
 #include "Language.h"
@@ -70,6 +71,14 @@ enum ScaleType
  */
 namespace Options
 {
+	/// Text descriptions of matching normal and shifted keyboard rows.
+	struct VirtualKeyboardLayoutOptions
+	{
+		std::string label, normal, shifted;
+	};
+	/// Built-in en-US layout used when configured layouts are unavailable or invalid.
+	const VirtualKeyboardLayoutOptions &getDefaultVirtualKeyboardLayout();
+
 #define OPT extern
 #include "Options.inc.h"
 #undef OPT

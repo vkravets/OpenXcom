@@ -31,7 +31,8 @@ private:
 	bool _isPressed;
 	int _originalColor, _invertedColor;
 	TextButton *_fakeGroup;
-
+protected:
+	bool isButtonHandled(Uint8 button = 0) override;
 public:
 
 	void draw() override;

@@ -22,6 +22,11 @@
 namespace OpenXcom
 {
 
+bool ImageButton::isButtonHandled(Uint8 button)
+{
+	return (_group && button == SDL_BUTTON_LEFT) || InteractiveSurface::isButtonHandled(button);
+}
+
 /**
  * Sets up an image button with the specified size and position.
  * @param width Width in pixels.

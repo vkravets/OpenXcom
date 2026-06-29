@@ -228,17 +228,38 @@ void FlcPlayer::delay(Uint32 milliseconds)
 		SDLPolling();
 	}
 }
+bool FlcPlayer::isSkipEvent(const SDL_Event &event)
+{
+	switch (event.type)
+	{
+	case SDL_KEYDOWN:
+	case SDL_MOUSEBUTTONDOWN:
+		return true;
+	case SDL_JOYBUTTONDOWN:
+		return Options::oxceJoystickEnabled && SDL_JoystickOpened(event.jbutton.which);
+	case SDL_JOYHATMOTION:
+		return Options::oxceJoystickEnabled && event.jhat.value != SDL_HAT_CENTERED &&
+			SDL_JoystickOpened(event.jhat.which);
+	default:
+		return false;
+	}
+}
+
 void FlcPlayer::SDLPolling()
 {
+	// Sample devices once so noisy axes cannot keep the movie in this loop.
+	SDL_PumpEvents();
 	SDL_Event event;
-	while (SDL_PollEvent(&event))
+	unsigned int eventsProcessed = 0;
+	while (eventsProcessed++ < 256 && SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_ALLEVENTS) > 0)
 	{
+		if (isSkipEvent(event))
+		{
+			_playingState = SKIPPED;
+			continue;
+		}
 		switch (event.type)
 		{
-		case SDL_MOUSEBUTTONDOWN:
-		case SDL_KEYDOWN:
-			_playingState = SKIPPED;
-			break;
 		case SDL_VIDEORESIZE:
 			if (Options::allowResize)
 			{

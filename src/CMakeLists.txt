@@ -249,6 +249,7 @@ set ( interface_src
   Interface/TextEdit.cpp
   Interface/TextList.cpp
   Interface/ToggleTextButton.cpp
+  Interface/VirtualKeyboardState.cpp
   Interface/Window.cpp
 )
 

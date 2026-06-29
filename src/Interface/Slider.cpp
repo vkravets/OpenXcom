@@ -26,6 +26,11 @@
 namespace OpenXcom
 {
 
+bool Slider::isButtonHandled(Uint8 button)
+{
+	return button == SDL_BUTTON_LEFT || InteractiveSurface::isButtonHandled(button);
+}
+
 /**
  * Sets up a slider with the specified size and position.
  * @param width Width in pixels.

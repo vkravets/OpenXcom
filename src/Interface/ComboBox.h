@@ -97,6 +97,8 @@ public:
 	void think() override;
 	/// Handle arrow buttons.
 	void handle(Action *action, State *state) override;
+	/// Includes the button and the visible dropdown list.
+	bool isMouseTarget(double x, double y, Uint8 button) override;
 	/// Toggles the combo box state.
 	void toggle(bool first, bool listClick);
 	/// Hooks an action handler to when the slider changes.

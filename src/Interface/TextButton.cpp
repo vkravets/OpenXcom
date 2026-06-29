@@ -17,11 +17,13 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "TextButton.h"
+#include <algorithm>
 #include <SDL.h>
 #include <SDL_mixer.h>
 #include "Text.h"
 #include "../Engine/Sound.h"
 #include "../Engine/Action.h"
+#include "../Engine/Options.h"
 #include "ComboBox.h"
 
 namespace OpenXcom
@@ -37,7 +39,7 @@ Sound *TextButton::soundPress;
  * @param x X position in pixels.
  * @param y Y position in pixels.
  */
-TextButton::TextButton(int width, int height, int x, int y) : InteractiveSurface(width, height, x, y), _color(0), _group(0), _contrast(false), _geoscapeButton(false), _comboBox(0)
+TextButton::TextButton(int width, int height, int x, int y) : InteractiveSurface(width, height, x, y), _color(0), _group(0), _contrast(false), _geoscapeButton(false), _comboBox(0), _textPaddingX(0), _textPaddingY(0)
 {
 	_text = new Text(width, height, 0, 0);
 	_text->setSmall();
@@ -54,6 +56,32 @@ TextButton::~TextButton()
 	delete _text;
 }
 
+void TextButton::copyStyle(const TextButton &source)
+{
+	setColor(source._color);
+	setTextColor(source._text->getColor());
+	_text->setSecondaryColor(source._text->getSecondaryColor());
+	setHighContrast(source._contrast);
+	setTFTDMode(source._tftdMode);
+	_geoscapeButton = source._geoscapeButton;
+}
+
+void TextButton::setTextPadding(int horizontal, int vertical)
+{
+	_textPaddingX = std::max(0, horizontal);
+	_textPaddingY = std::max(0, vertical);
+	updateTextBounds();
+}
+
+void TextButton::updateTextBounds()
+{
+	_text->setX(_textPaddingX + (_comboBox ? -6 : 0));
+	_text->setY(_textPaddingY);
+	_text->setWidth(std::max(1, getWidth() - 2 * _textPaddingX));
+	_text->setHeight(std::max(1, getHeight() - 2 * _textPaddingY));
+	_redraw = true;
+}
+
 bool TextButton::isButtonHandled(Uint8 button)
 {
 	if (_comboBox != 0)
@@ -62,7 +90,50 @@ bool TextButton::isButtonHandled(Uint8 button)
 	}
 	else
 	{
-		return InteractiveSurface::isButtonHandled(button);
+		return (_group && button == SDL_BUTTON_LEFT) || InteractiveSurface::isButtonHandled(button);
+	}
+}
+
+/**
+ * Uses explicit controller actions when present, otherwise the configured
+ * dialog keyboard binding. Hidden or unfocused buttons cannot be activated.
+ */
+ActionHandler TextButton::getControllerHandler(bool confirm) const
+{
+	if (!_visible || _hidden || !_isFocused)
+		return nullptr;
+
+	auto explicitHandler = _controllerPress.find(confirm);
+	if (explicitHandler != _controllerPress.end())
+		return explicitHandler->second;
+
+	SDLKey key = confirm ? Options::keyOk : Options::keyCancel;
+	if (key == SDLK_UNKNOWN)
+		return nullptr;
+	auto keyboardHandler = _keyPress.find(key);
+	return keyboardHandler == _keyPress.end() ? nullptr : keyboardHandler->second;
+}
+
+/**
+ * Explicit null entries intentionally suppress the keyboard-derived action.
+ */
+void TextButton::onControllerPress(ActionHandler handler, bool confirm)
+{
+	_controllerPress[confirm] = handler;
+}
+
+bool TextButton::isControllerButtonHandled(bool confirm) const
+{
+	return getControllerHandler(confirm) != nullptr;
+}
+
+void TextButton::controllerButtonPress(Action *action, State *state, bool confirm)
+{
+	ActionHandler handler = getControllerHandler(confirm);
+	if (handler)
+	{
+		action->setSender(this);
+		(state->*handler)(action);
 	}
 }
 
@@ -332,26 +403,19 @@ void TextButton::mouseRelease(Action *action, State *state)
 void TextButton::setComboBox(ComboBox *comboBox)
 {
 	_comboBox = comboBox;
-	if (_comboBox)
-	{
-		_text->setX(-6);
-	}
-	else
-	{
-		_text->setX(0);
-	}
+	updateTextBounds();
 }
 
 void TextButton::setWidth(int width)
 {
 	Surface::setWidth(width);
-	_text->setWidth(width);
+	updateTextBounds();
 }
 
 void TextButton::setHeight(int height)
 {
 	Surface::setHeight(height);
-	_text->setHeight(height);
+	updateTextBounds();
 }
 
 void TextButton::setGeoscapeButton(bool geo)

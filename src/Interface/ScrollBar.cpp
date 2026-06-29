@@ -25,6 +25,12 @@
 namespace OpenXcom
 {
 
+bool ScrollBar::isButtonHandled(Uint8 button)
+{
+	return (_list && (button == SDL_BUTTON_LEFT || button == SDL_BUTTON_WHEELUP || button == SDL_BUTTON_WHEELDOWN)) ||
+		InteractiveSurface::isButtonHandled(button);
+}
+
 /**
  * Sets up a scrollbar with the specified size and position.
  * @param width Width in pixels.

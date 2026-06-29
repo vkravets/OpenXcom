@@ -60,6 +60,7 @@ namespace OpenXcom
 
 		_btnYes->setText(tr("STR_YES"));
 		_btnYes->onMouseClick((ActionHandler)&ModConfirmExtendedState::btnYesClick);
+		_btnYes->onControllerPress((ActionHandler)&ModConfirmExtendedState::btnYesClick, true);
 		if (!modInfo->isEngineOk())
 		{
 			_btnYes->setVisible(false);
@@ -67,6 +68,7 @@ namespace OpenXcom
 
 		_btnNo->setText(tr("STR_CANCEL"));
 		_btnNo->onMouseClick((ActionHandler)&ModConfirmExtendedState::btnNoClick);
+		_btnNo->onControllerPress((ActionHandler)&ModConfirmExtendedState::btnNoClick, false);
 
 		_txtTitle->setAlign(ALIGN_CENTER);
 		_txtTitle->setBig();

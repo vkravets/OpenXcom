@@ -41,6 +41,8 @@ private:
 	void drawTrack();
 	/// Draws the scrollbar thumb.
 	void drawThumb();
+protected:
+	bool isButtonHandled(Uint8 button = 0) override;
 public:
 	/// Creates a new scrollbar with the specified size and position.
 	ScrollBar(int width, int height, int x = 0, int y = 0);

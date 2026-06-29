@@ -18,6 +18,7 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <list>
+#include <map>
 #include <string>
 #include <SDL.h>
 
@@ -34,6 +35,7 @@ class ModInfo;
 class FpsCounter;
 class Action;
 class GeoscapeState;
+class TextEdit;
 
 /**
  * The core of the game engine, manages the game's entire contents and structure.
@@ -58,7 +60,25 @@ private:
 	int _timeUntilNextFrame;
 	bool _ctrl, _alt, _shift, _rmb, _mmb;
 	int _scrollStep;
+	SDL_Joystick *_joystick;
+	Sint16 _joystickAxisX, _joystickAxisY;
+	Uint8 _joystickHatState;
+	Uint8 _mouseButtons, _joystickMouseButtons;
+	struct JoystickButtonBinding
+	{
+		SDLKey key = SDLK_UNKNOWN;
+		Uint8 mouseButton = 0;
+		int command = -1;
+		State *state = nullptr;
+		TextEdit *editor = nullptr;
+	};
+	std::map<Uint8, JoystickButtonBinding> _joystickButtonBindings;
+	enum { CONTROLLER_CONFIRM_EVENT = 1, CONTROLLER_CANCEL_EVENT = 2, CONTROLLER_DELETE_EVENT = 3 };
+	float _joystickCursorFracX, _joystickCursorFracY;
+	Uint32 _joystickLastTime;
 	static const double VOLUME_GRADIENT;
+	/// Converts controller input to shared mouse/keyboard events; false consumes the event.
+	bool convertInputEvent(SDL_Event &event);
 
 public:
 	/// Creates a new game and initializes SDL.
@@ -97,6 +117,8 @@ public:
 	void loadMods();
 	/// Sets whether the mouse cursor is activated.
 	void setMouseActive(bool active);
+	/// Gets held mouse buttons from both the physical mouse and the controller.
+	Uint8 getMouseButtonState() const;
 	/// Returns whether current state is the param state
 	bool isState(State *state) const;
 	/// Returns whether a UfopaediaStartState is in the background.

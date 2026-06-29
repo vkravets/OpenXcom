@@ -58,6 +58,23 @@ bool _loadLastSave = false;
 std::string _loadThisSave = "";
 bool _loadLastSaveExpended = false;
 
+const VirtualKeyboardLayoutOptions &getDefaultVirtualKeyboardLayout()
+{
+	static const VirtualKeyboardLayoutOptions layout =
+	{
+		"EN",
+		"` 1 2 3 4 5 6 7 8 9 0 - = || "
+		"q w e r t y u i o p [ ] \\ || "
+		"a s d f g h j k l ; ' || "
+		"z x c v b n m , . / || shift space",
+		"~ ! @ # $ % ^ & * ( ) _ + || "
+		"Q W E R T Y U I O P { } | || "
+		"A S D F G H J K L : \" || "
+		"Z X C V B N M < > ? || shift space"
+	};
+	return layout;
+}
+
 /**
  * Sets up the options by creating their OptionInfo metadata.
  */
@@ -434,6 +451,17 @@ void createOptionsOXCE()
 
 	// TODO: needs restart (or code change) to work properly
 	_info.push_back(OptionInfo(OPTION_OXCE, "oxceMaxEquipmentLayoutTemplates", &oxceMaxEquipmentLayoutTemplates, 20, "", "HIDDEN"));
+
+	// Joystick/gamepad support
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickEnabled", &oxceJoystickEnabled, true, "", "HIDDEN"));
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickDeadZone", &oxceJoystickDeadZone, 8000, "", "HIDDEN"));
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickCursorSpeed", &oxceJoystickCursorSpeed, 400, "", "HIDDEN"));
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickButtonOk", &oxceJoystickButtonOk, 0, "", "HIDDEN"));
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickButtonCancel", &oxceJoystickButtonCancel, 1, "", "HIDDEN"));
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickButtonLeftClick", &oxceJoystickButtonLeftClick, 4, "", "HIDDEN"));
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickButtonRightClick", &oxceJoystickButtonRightClick, 5, "", "HIDDEN"));
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickButtonKeyboard", &oxceJoystickButtonKeyboard, 3, "", "HIDDEN"));
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickButtonDelete", &oxceJoystickButtonDelete, 2, "", "HIDDEN"));
 }
 
 void createAdvancedOptionsOXCE()
@@ -635,6 +663,8 @@ void resetDefault(bool includeMods)
 	{
 		optionInfo.reset();
 	}
+	oxceVirtualKeyboardLanguages.assign(1, "en-US");
+	oxceVirtualKeyboardLayouts = { { "en-US", getDefaultVirtualKeyboardLayout() } };
 	backupDisplay();
 
 	if (includeMods)
@@ -1255,6 +1285,92 @@ void updateOptions()
 }
 
 /**
+ * Reads the ordered layout IDs without discarding IDs supported by future
+ * versions. The keyboard resolves available layouts and supplies its fallback.
+ */
+static std::vector<std::string> readVirtualKeyboardLanguages(const YAML::YamlNodeReader& options)
+{
+	std::vector<std::string> languages;
+	const auto node = options["oxceVirtualKeyboardLanguages"];
+	if (node && node.isSeq())
+	{
+		for (const auto& language : node.children())
+		{
+			if (!language.hasVal() || language.hasNullVal())
+				continue;
+			std::string id = language.readVal<std::string>();
+			if (id.find_first_not_of(" \t\r\n") != std::string::npos)
+				languages.push_back(id);
+		}
+	}
+	if (languages.empty())
+		languages.push_back("en-US");
+	return languages;
+}
+
+static void saveVirtualKeyboardLanguages(YAML::YamlNodeWriter options)
+{
+	auto languages = options["oxceVirtualKeyboardLanguages"];
+	languages.setAsSeq();
+	for (const auto& language : oxceVirtualKeyboardLanguages)
+		languages.write(language).setAsQuotedAndEscaped();
+}
+
+static bool readVirtualKeyboardLayoutString(const YAML::YamlNodeReader& node, std::string& value)
+{
+	if (!node || !node.hasVal() || node.hasNullVal())
+		return false;
+	value = node.readVal<std::string>();
+	return true;
+}
+
+static std::map<std::string, VirtualKeyboardLayoutOptions> readVirtualKeyboardLayouts(const YAML::YamlNodeReader& options)
+{
+	// Keep en-US available when migrating older configs or adding a custom
+	// language. Invalid entry types cannot break the rest of the options file.
+	std::map<std::string, VirtualKeyboardLayoutOptions> layouts = { { "en-US", getDefaultVirtualKeyboardLayout() } };
+	const auto node = options["oxceVirtualKeyboardLayouts"];
+	if (node && node.isMap())
+	{
+		for (const auto& entry : node.children())
+		{
+			if (!entry.isMap())
+				continue;
+			std::string id = entry.readKey<std::string>();
+			VirtualKeyboardLayoutOptions layout;
+			if (id.find_first_not_of(" \t\r\n") == std::string::npos ||
+				!readVirtualKeyboardLayoutString(entry["normal"], layout.normal) ||
+				layout.normal.find_first_not_of(" \t\r\n") == std::string::npos)
+				continue;
+			const auto label = entry["label"], shifted = entry["shifted"];
+			if ((label && !readVirtualKeyboardLayoutString(label, layout.label)) ||
+				(shifted && !readVirtualKeyboardLayoutString(shifted, layout.shifted)))
+				continue;
+			if (layout.label.find_first_not_of(" \t\r\n") == std::string::npos)
+				layout.label = id;
+			if (layout.shifted.find_first_not_of(" \t\r\n") == std::string::npos)
+				layout.shifted = layout.normal;
+			layouts[id] = std::move(layout);
+		}
+	}
+	return layouts;
+}
+
+static void saveVirtualKeyboardLayouts(YAML::YamlNodeWriter options)
+{
+	auto layouts = options["oxceVirtualKeyboardLayouts"];
+	layouts.setAsMap();
+	for (const auto& entry : oxceVirtualKeyboardLayouts)
+	{
+		auto layout = layouts[layouts.saveString(entry.first)];
+		layout.setAsMap();
+		layout.write("label", entry.second.label).setAsQuotedAndEscaped();
+		layout.write("normal", entry.second.normal).setAsQuotedAndEscaped();
+		layout.write("shifted", entry.second.shifted).setAsQuotedAndEscaped();
+	}
+}
+
+/**
  * Loads options from a YAML file.
  * @param filename YAML filename.
  * @return Was the loading successful?
@@ -1274,6 +1390,8 @@ bool load(const std::string &filename)
 		{
 			optionInfo.load(reader["options"]);
 		}
+		oxceVirtualKeyboardLanguages = readVirtualKeyboardLanguages(reader["options"]);
+		oxceVirtualKeyboardLayouts = readVirtualKeyboardLayouts(reader["options"]);
 
 		mods.clear();
 		for (const auto& mod : reader["mods"].children())
@@ -1325,6 +1443,8 @@ bool save(bool reset, const std::string& filename)
 		{
 			optionInfo.save(optionsWriter);
 		}
+		saveVirtualKeyboardLanguages(optionsWriter);
+		saveVirtualKeyboardLayouts(optionsWriter);
 		if (!reset && CrossPlatform::fileExists(filepath))
 		{
 			// Preserve any undefined options, because they could be from a different fork

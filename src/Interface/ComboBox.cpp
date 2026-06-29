@@ -378,6 +378,13 @@ void ComboBox::handle(Action *action, State *state)
 	}
 }
 
+bool ComboBox::isMouseTarget(double x, double y, Uint8 button)
+{
+	return _visible && !_hidden &&
+		(_button->isMouseTarget(x, y, button) || _list->isMouseTarget(x, y, button) ||
+		 InteractiveSurface::isMouseTarget(x, y, button));
+}
+
 /**
  * Passes ticks to arrow buttons.
  */

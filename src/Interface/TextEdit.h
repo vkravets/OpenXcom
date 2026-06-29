@@ -50,6 +50,8 @@ private:
 	bool exceedsMaxWidth(UCode c) const;
 	/// Checks if character is valid to be inserted at caret position.
 	bool isValidChar(UCode c) const;
+protected:
+	bool isButtonHandled(Uint8 button = 0) override;
 public:
 	/// Creates a new text edit with the specified size and position.
 	TextEdit(State *state, int width, int height, int x = 0, int y = 0);
@@ -57,6 +59,8 @@ public:
 	~TextEdit();
 	/// Handle focus.
 	void handle(Action *action, State *state) override;
+	/// Checks whether this field can receive a targeted controller edit.
+	bool isControllerEditable() const;
 	/// Sets focus on this text edit.
 	void setFocus(bool focus, bool modal = true) override;
 	/// Sets the text size to big.
@@ -107,6 +111,8 @@ public:
 	void onEnter(ActionHandler handler);
 	/// Sets the text edit's background drawing setting.
 	void setDrawBackground(bool drawBackground) { _drawBackground = drawBackground; }
+	/// Directly processes a virtual key (used by VirtualKeyboardState).
+	void typeVirtualKey(SDLKey sym, Uint16 unicode);
 };
 
 }

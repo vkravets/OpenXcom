@@ -184,6 +184,8 @@ public:
 	void think() override;
 	/// Handles arrow buttons.
 	void handle(Action *action, State *state) override;
+	/// Includes the list's visible row arrows and external scrolling controls.
+	bool isMouseTarget(double x, double y, Uint8 button) override;
 	bool isMouseCursorOverMe(State* state) const;
 	/// Special handling for mouse presses.
 	void mousePress(Action *action, State *state) override;

@@ -45,6 +45,8 @@ private:
 
 	/// Sets the slider's position.
 	void setPosition(double pos);
+protected:
+	bool isButtonHandled(Uint8 button = 0) override;
 public:
 	/// Creates a new slider with the specified size and position.
 	Slider(int width, int height, int x = 0, int y = 0);

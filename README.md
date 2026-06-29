@@ -155,6 +155,121 @@ savegame.
 
 For more details please check the [wiki](https://ufopaedia.org/index.php/Options_(OpenXcom)).
 
+### Joystick controls
+
+The left stick moves the shared mouse cursor. A clicks an interactive control
+under the cursor, including text fields, lists, sliders and their arrows. When
+no control is under the cursor, A activates the dialog's available OK shortcut;
+otherwise it acts as a left mouse click. B activates the dialog's available
+Cancel shortcut, or acts as a right mouse click. LB and RB always click at the
+cursor, including when a dialog has OK or Cancel shortcuts. Physical mouse and
+keyboard input continue to work alongside the controller.
+
+Any button or D-pad direction on the enabled controller skips movie playback,
+including the startup intro and its closing pause or fade. Stick motion does
+not skip movies.
+
+Edit these bindings under `options:` in `options.cfg` while the game is closed:
+
+```yaml
+  oxceJoystickButtonOk: 0          # A: click a control, otherwise OK/left click
+  oxceJoystickButtonCancel: 1      # B: Cancel, otherwise right click
+  oxceJoystickButtonLeftClick: 4   # LB: left click at the cursor
+  oxceJoystickButtonRightClick: 5  # RB: right click at the cursor
+  oxceJoystickButtonKeyboard: 3    # Y: toggle the virtual keyboard
+  oxceJoystickButtonDelete: 2      # X: delete in a focused text field or keyboard
+```
+
+Button indices are zero-based and depend on the controller. Use `-1` to disable
+a binding; values outside `0..255` or the controller's button range have no
+effect. Dialog actions use the existing `keyOk` and `keyCancel` settings
+(Enter and Escape by default), including any changes made in the keyboard
+controls settings.
+
+With `keyboardMode: 2`, Y toggles the virtual keyboard for a focused text field.
+There, A selects a key, B closes the keyboard and X deletes a character. Outside
+the virtual keyboard, X deletes the character before the caret in a focused
+text field when `keyboardMode` is `1` or `2`; otherwise it sends Space. Outside
+virtual-keyboard mode Y sends the configured OK shortcut. Buttons 6 through 9
+retain the configured Cancel shortcut unless assigned another action above.
+
+Closing the keyboard with Y or B preserves the text and keeps the field focused.
+Use the dialog's OK control to confirm the text after closing the keyboard.
+Holding a D-pad direction in the virtual keyboard repeats navigation after
+400 ms, then every 100 ms. Releasing it, changing screens, or losing window
+focus stops the repeat. Confirm, cancel and character input are not repeated.
+
+If bindings share a button, virtual-keyboard toggle takes priority in virtual
+keyboard mode, followed by explicit mouse clicks, OK, Cancel, then Delete.
+Left click takes priority if both mouse bindings share a button. Assign distinct
+buttons to keep every action accessible.
+
+### Virtual keyboard layouts
+
+Keyboard layouts are hidden settings under `options:` in `options.cfg`. Close
+the game before editing the file. This default reproduces the QWERTY keyboard:
+
+```yaml
+  oxceVirtualKeyboardLanguages:
+    - en-US
+  oxceVirtualKeyboardLayouts:
+    en-US:
+      label: EN
+      normal: >-
+        ` 1 2 3 4 5 6 7 8 9 0 - = ||
+        q w e r t y u i o p [ ] \ ||
+        a s d f g h j k l ; ' ||
+        z x c v b n m , . / || shift space
+      shifted: >-
+        ~ ! @ # $ % ^ & * ( ) _ + ||
+        Q W E R T Y U I O P { } | ||
+        A S D F G H J K L : " ||
+        Z X C V B N M < > ? || shift space
+```
+
+Separate keys with whitespace and rows with `||`; a final `||` is optional.
+Each key is one character or one of the lowercase tokens `backspace`, `shift`
+and `space`. The `normal` and `shifted` strings must have matching rows and key
+positions, with special tokens in the same positions. `normal` is required;
+an omitted or empty `shifted` uses `normal`, and an omitted or empty `label`
+uses the layout ID. Folded YAML strings (`>-`) let punctuation such as `#`,
+quotes and backslashes remain literal without extra escaping.
+
+The first row sets the grid width. Other rows are centered within it, and
+`space` expands to fill the remaining row width; multiple space keys share
+that width. Backspace, Shift and Space have a minimum width of two ordinary
+key positions. Rows must fit within the first row, with at most 14 ordinary
+key positions across and eight rows. There are no on-screen OK or Esc keys;
+B or Y closes the keyboard, then the dialog's OK control confirms the text.
+The default layout has one Shift key beside Space in the bottom row, with
+the letter rows centered above it. There is no Backspace key; use X to delete.
+Custom layouts can still include `backspace`.
+
+Add another ID under `oxceVirtualKeyboardLayouts` and include it in
+`oxceVirtualKeyboardLanguages` to enable it without rebuilding. Valid layouts
+are enabled in that list's order; duplicate IDs are ignored. With more than
+one enabled layout, the language label becomes a button: click it to cycle
+through the layouts and wrap to the first one, or move up from the first key
+row with the D-pad and press A. Switching preserves the text, caret position
+and Shift state. The compact language button shows the first two characters
+of the layout label (for example, EN or RU), without a Shift marker. With one
+layout, the label is informational.
+
+The language control's right edge follows the last key in the first row,
+and the current text begins above that row's first key. The window follows
+the row width with three quarters of a letter key of padding on each side,
+rounded to a whole logical pixel, and the same padding above and below.
+Vertical padding is reduced slightly for eight rows to keep the window on
+screen. These distances use the game's logical interface coordinates and
+scale with the rest of the UI at each resolution. Very narrow custom layouts
+hide the text preview when there is no room beside the language control.
+
+Unknown IDs remain in the preference list. Missing settings are filled with
+the default `en-US` layout; malformed entries are ignored, and if none of the
+requested layouts is usable the built-in QWERTY layout is used. The keyboard
+layout is independent of the game's language; custom characters still need
+to be present in its fonts.
+
 ## Development
 
 OpenXcom requires the following developer libraries:

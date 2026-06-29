@@ -138,6 +138,8 @@ public:
 	void stop();
 	/// Delay player at the end
 	void delay(Uint32 milliseconds);
+	/// Checks for a deliberate keyboard, mouse or enabled controller skip press.
+	static bool isSkipEvent(const SDL_Event &event);
 	void setHeaderSpeed(int speed);
 	int getFrameCount();
 	bool wasSkipped();

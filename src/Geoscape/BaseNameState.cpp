@@ -69,6 +69,8 @@ BaseNameState::BaseNameState(Base *base, Globe *globe, bool first, bool fixedLoc
 	_btnOk->onMouseClick((ActionHandler)&BaseNameState::btnOkClick);
 	//_btnOk->onKeyboardPress((ActionHandler)&BaseNameState::btnOkClick, Options::keyOk);
 	_btnOk->onKeyboardPress((ActionHandler)&BaseNameState::btnOkClick, Options::keyCancel);
+	_btnOk->onControllerPress((ActionHandler)&BaseNameState::btnOkClick, true);
+	_btnOk->onControllerPress(nullptr, false);
 
 	//something must be in the name before it is acceptable
 	_btnOk->setVisible(false);

@@ -1151,6 +1151,51 @@ bool TextList::isMouseCursorOverMe(State* state) const
 	return true;
 }
 
+bool TextList::isMouseTarget(double x, double y, Uint8 button)
+{
+	if (!_visible || _hidden)
+		return false;
+
+	if (_up->isMouseTarget(x, y, button) || _down->isMouseTarget(x, y, button) ||
+		_scrollbar->isMouseTarget(x, y, button))
+		return true;
+
+	if (_arrowPos != -1 && _scroll < _rows.size())
+	{
+		// Match the displayed row arrows handled by handle(), excluding a row
+		// whose first line has already scrolled above the list.
+		size_t startArrowIdx = _rows[_scroll];
+		if (0 < _scroll && _rows[_scroll] == _rows[_scroll - 1])
+			++startArrowIdx;
+		size_t endArrowIdx = _rows[_scroll] + 1;
+		size_t endRow = std::min(_rows.size(), _scroll + _visibleRows);
+		for (size_t i = _scroll + 1; i < endRow; ++i)
+		{
+			if (_rows[i] != _rows[i - 1])
+				++endArrowIdx;
+		}
+		for (size_t i = startArrowIdx; i < endArrowIdx; ++i)
+		{
+			if (_arrowLeft[i]->isMouseTarget(x, y, button) || _arrowRight[i]->isMouseTarget(x, y, button))
+				return true;
+		}
+	}
+
+	if (x < getX() || x >= getX() + getWidth() || y < getY() || y >= getY() + getHeight())
+		return false;
+	if (_selectable)
+	{
+		if (!_font || _rows.empty())
+			return false;
+		int rowHeight = _font->getHeight() + _font->getSpacing();
+		if (rowHeight <= 0 || _scroll + (size_t)((y - getY()) / rowHeight) >= _rows.size())
+			return false;
+		if (_comboBox && button == SDL_BUTTON_LEFT)
+			return true;
+	}
+	return InteractiveSurface::isMouseTarget(x, y, button);
+}
+
 /**
  * Passes ticks to arrow buttons.
  */

@@ -29,6 +29,8 @@ class Game;
 class Surface;
 class InteractiveSurface;
 class Window;
+class TextButton;
+class TextEdit;
 class Action;
 class SavedBattleGame;
 class RuleInterface;
@@ -72,6 +74,8 @@ public:
 	void setWindowBackground(Window *window, const std::string &s);
 	/// Set window background by image name (instead of by interface name).
 	void setWindowBackgroundImage(Window* window, const std::string& bgImageName);
+	/// Applies this state's current window/button appearance to an overlay.
+	void applyOverlayStyle(Window *window, TextButton *button) const;
 	/// Add a optional child element but it will not be displayed.
 	template<typename T>
 	T* preAdd(T *surface)
@@ -94,6 +98,14 @@ public:
 	virtual void init();
 	/// Handles any events.
 	virtual void handle(Action *action);
+	/// Finds the active controller confirm/cancel button in a dialog.
+	TextButton *getControllerButton(bool confirm) const;
+	/// Checks for a mouse control at the given logical screen coordinates.
+	bool isMouseTarget(double x, double y, Uint8 button) const;
+	/// Activates one dialog button without broadcasting keyboard input.
+	bool handleControllerButton(bool confirm, Action *action);
+	/// Gets the visible focused text field selected by normal modal input routing.
+	TextEdit *getFocusedTextEdit() const;
 	/// Runs state functionality every cycle.
 	virtual void think();
 	/// Blits the state to the screen.
@@ -124,6 +136,8 @@ public:
 	void applyBattlescapeTheme(const std::string& category);
 	/// Sets game object pointer
 	static void setGamePtr(Game* game);
+	/// Gets game object pointer
+	static Game* getGame() { return _game; }
 	/// Sets a modal surface.
 	void setModal(InteractiveSurface *surface);
 

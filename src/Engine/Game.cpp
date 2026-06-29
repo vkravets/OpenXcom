@@ -30,6 +30,8 @@
 #include "Logger.h"
 #include "../Interface/Cursor.h"
 #include "../Interface/FpsCounter.h"
+#include "../Interface/VirtualKeyboardState.h"
+#include "../Interface/TextEdit.h"
 #include "../Mod/Mod.h"
 #include "../Savegame/SavedGame.h"
 #include "../Savegame/SavedBattleGame.h"
@@ -56,7 +58,10 @@ const double Game::VOLUME_GRADIENT = 10.0;
  * @param title Title of the game window.
  */
 Game::Game(const std::string &title) : _screen(0), _cursor(0), _lang(0), _save(0), _mod(0), _quit(false), _init(false), _update(false),  _mouseActive(true), _timeUntilNextFrame(0),
-	_ctrl(false), _alt(false), _shift(false), _rmb(false), _mmb(false), _scrollStep(1)
+	_ctrl(false), _alt(false), _shift(false), _rmb(false), _mmb(false), _scrollStep(1),
+	_joystick(nullptr), _joystickAxisX(0), _joystickAxisY(0), _joystickHatState(SDL_HAT_CENTERED),
+	_mouseButtons(0), _joystickMouseButtons(0),
+	_joystickCursorFracX(0.0f), _joystickCursorFracY(0.0f), _joystickLastTime(0)
 {
 	Options::reload = false;
 	Options::mute = false;
@@ -104,6 +109,34 @@ Game::Game(const std::string &title) : _screen(0), _cursor(0), _lang(0), _save(0
 	_lang = new Language();
 
 	_timeOfLastFrame = 0;
+	_mouseButtons = SDL_GetMouseState(nullptr, nullptr);
+
+	// Initialize joystick subsystem
+	if (Options::oxceJoystickEnabled)
+	{
+		Log(LOG_INFO) << "Joystick checking...";
+		if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) < 0)
+		{
+			Log(LOG_WARNING) << "Could not initialize joystick subsystem: " << SDL_GetError();
+		}
+		else if (SDL_NumJoysticks() > 0)
+		{
+			_joystick = SDL_JoystickOpen(0);
+			if (_joystick)
+			{
+				Log(LOG_INFO) << "Joystick opened: " << SDL_JoystickName(0);
+				SDL_JoystickEventState(SDL_ENABLE);
+			}
+			else
+			{
+				Log(LOG_WARNING) << "Could not open joystick 0: " << SDL_GetError();
+			}
+		}
+		else
+		{
+			Log(LOG_INFO) << "No joysticks found.";
+		}
+	}
 }
 
 /**
@@ -128,9 +161,257 @@ Game::~Game()
 	delete _screen;
 	delete _fpsCounter;
 
+	if (_joystick)
+	{
+		SDL_JoystickClose(_joystick);
+		_joystick = nullptr;
+	}
+
 	Mix_CloseAudio();
 
 	SDL_Quit();
+}
+
+/**
+ * Translates controller buttons before normal event dispatch, so mouse and
+ * controller input share the cursor, UI handlers and held-button state.
+ * @return True if the event should be dispatched, false if it was consumed.
+ */
+bool Game::convertInputEvent(SDL_Event &event)
+{
+	switch (event.type)
+	{
+	case SDL_ACTIVEEVENT:
+		if (!event.active.gain && (event.active.state & (SDL_APPINPUTFOCUS | SDL_APPACTIVE)))
+		{
+			if (auto *keyboard = dynamic_cast<VirtualKeyboardState*>(_states.back()))
+				keyboard->armDpadRepeat(SDL_HAT_CENTERED);
+		}
+		break;
+	case SDL_USEREVENT:
+		if (event.user.code == CONTROLLER_DELETE_EVENT)
+		{
+			if (event.user.data1 == _states.back() &&
+				(Options::keyboardMode == KEYBOARD_ON || Options::keyboardMode == KEYBOARD_VIRTUAL))
+			{
+				TextEdit *editor = _states.back()->getFocusedTextEdit();
+				if (editor && editor == event.user.data2)
+					editor->typeVirtualKey(SDLK_BACKSPACE, 0);
+			}
+			return false;
+		}
+		if (event.user.code == CONTROLLER_CONFIRM_EVENT || event.user.code == CONTROLLER_CANCEL_EVENT)
+		{
+			// Do not let a queued confirmation act on a different dialog.
+			if (event.user.data1 == _states.back())
+			{
+				bool confirm = event.user.code == CONTROLLER_CONFIRM_EVENT;
+				SDL_Event keyEvent = {};
+				keyEvent.type = SDL_KEYDOWN;
+				keyEvent.key.state = SDL_PRESSED;
+				keyEvent.key.keysym.sym = confirm ? Options::keyOk : Options::keyCancel;
+				keyEvent.key.keysym.mod = KMOD_NONE;
+				Action action(&keyEvent, _screen->getXScale(), _screen->getYScale(), _screen->getCursorTopBlackBand(), _screen->getCursorLeftBlackBand());
+				_states.back()->handleControllerButton(confirm, &action);
+			}
+			return false;
+		}
+		break;
+	case SDL_MOUSEMOTION:
+		_mouseButtons = event.motion.state;
+		event.motion.state |= _joystickMouseButtons;
+		break;
+	case SDL_MOUSEBUTTONDOWN:
+	case SDL_MOUSEBUTTONUP:
+	{
+		Uint8 mask = SDL_BUTTON(event.button.button);
+		if (event.type == SDL_MOUSEBUTTONDOWN)
+			_mouseButtons |= mask;
+		else
+			_mouseButtons &= ~mask;
+		// The shared button stays pressed until both input sources release it.
+		return (_joystickMouseButtons & mask) == 0;
+	}
+	case SDL_JOYAXISMOTION:
+		if (_joystick && event.jaxis.which == SDL_JoystickIndex(_joystick))
+		{
+			if (event.jaxis.axis == 0)
+				_joystickAxisX = event.jaxis.value;
+			else if (event.jaxis.axis == 1)
+				_joystickAxisY = event.jaxis.value;
+		}
+		return false;
+	case SDL_JOYHATMOTION:
+		if (_joystick && event.jhat.which == SDL_JoystickIndex(_joystick) && event.jhat.hat == 0)
+		{
+			struct HatKey { Uint8 mask; SDLKey key; };
+			static const HatKey hatKeys[4] =
+			{
+				{ SDL_HAT_UP,    SDLK_UP    },
+				{ SDL_HAT_DOWN,  SDLK_DOWN  },
+				{ SDL_HAT_LEFT,  SDLK_LEFT  },
+				{ SDL_HAT_RIGHT, SDLK_RIGHT },
+			};
+			Uint8 oldHat = _joystickHatState;
+			_joystickHatState = event.jhat.value;
+			for (const auto &hatKey : hatKeys)
+			{
+				bool wasDown = (oldHat & hatKey.mask) != 0;
+				bool isDown = (_joystickHatState & hatKey.mask) != 0;
+				if (wasDown != isDown)
+				{
+					SDL_Event keyEvent = {};
+					keyEvent.type = isDown ? SDL_KEYDOWN : SDL_KEYUP;
+					keyEvent.key.state = isDown ? SDL_PRESSED : SDL_RELEASED;
+					keyEvent.key.keysym.sym = hatKey.key;
+					keyEvent.key.keysym.mod = KMOD_NONE;
+					SDL_PushEvent(&keyEvent);
+				}
+			}
+			if (oldHat != _joystickHatState)
+			{
+				if (auto *keyboard = dynamic_cast<VirtualKeyboardState*>(_states.back()))
+					keyboard->armDpadRepeat(_joystickHatState);
+			}
+		}
+		return false;
+	case SDL_JOYBUTTONDOWN:
+	case SDL_JOYBUTTONUP:
+	{
+		if (!_joystick || event.jbutton.which != SDL_JoystickIndex(_joystick))
+			return false;
+		bool pressed = event.type == SDL_JOYBUTTONDOWN;
+		Uint8 button = event.jbutton.button;
+		Uint8 oldMouseButtons = _joystickMouseButtons;
+		JoystickButtonBinding binding;
+		if (pressed)
+		{
+			// A held button keeps its original action even if a dialog closes or
+			// the configuration changes before its release.
+			if (_joystickButtonBindings.find(button) != _joystickButtonBindings.end())
+				return false;
+			bool keyboard = dynamic_cast<VirtualKeyboardState*>(_states.back()) != nullptr;
+			if (button == Options::oxceJoystickButtonKeyboard && Options::keyboardMode == KEYBOARD_VIRTUAL)
+				binding.command = VirtualKeyboardState::TOGGLE_EVENT;
+			else if (button == Options::oxceJoystickButtonLeftClick)
+				binding.mouseButton = SDL_BUTTON_LEFT;
+			else if (button == Options::oxceJoystickButtonRightClick)
+				binding.mouseButton = SDL_BUTTON_RIGHT;
+			else if (button == Options::oxceJoystickButtonOk)
+			{
+				if (keyboard)
+					binding.key = SDLK_RETURN;
+				else
+				{
+					int x, y;
+					SDL_GetMouseState(&x, &y);
+					SDL_Event pointerEvent = {};
+					Action pointer(&pointerEvent, _screen->getXScale(), _screen->getYScale(), _screen->getCursorTopBlackBand(), _screen->getCursorLeftBlackBand());
+					pointer.setMouseAction(x, y, 0, 0);
+					if (_states.back()->getControllerButton(true) &&
+						!_states.back()->isMouseTarget(pointer.getAbsoluteXMouse(), pointer.getAbsoluteYMouse(), SDL_BUTTON_LEFT))
+					{
+						binding.command = CONTROLLER_CONFIRM_EVENT;
+						binding.state = _states.back();
+					}
+					else
+						binding.mouseButton = SDL_BUTTON_LEFT;
+				}
+			}
+			else if (button == Options::oxceJoystickButtonCancel)
+			{
+				if (keyboard)
+					binding.key = SDLK_ESCAPE;
+				else if (_states.back()->getControllerButton(false))
+				{
+					binding.command = CONTROLLER_CANCEL_EVENT;
+					binding.state = _states.back();
+				}
+				else
+					binding.mouseButton = SDL_BUTTON_RIGHT;
+			}
+			else if (button == Options::oxceJoystickButtonDelete)
+			{
+				if (keyboard)
+					binding.key = SDLK_BACKSPACE;
+				else if ((Options::keyboardMode == KEYBOARD_ON || Options::keyboardMode == KEYBOARD_VIRTUAL) &&
+					(binding.editor = _states.back()->getFocusedTextEdit()) != nullptr)
+				{
+					binding.command = CONTROLLER_DELETE_EVENT;
+					binding.state = _states.back();
+				}
+				else
+					binding.key = SDLK_SPACE;
+			}
+			else if (button == Options::oxceJoystickButtonKeyboard)
+				binding.key = Options::keyOk;
+			else if (button >= 6 && button <= 9)
+				binding.key = keyboard ? SDLK_ESCAPE : Options::keyCancel;
+			_joystickButtonBindings[button] = binding;
+		}
+		else
+		{
+			auto held = _joystickButtonBindings.find(button);
+			if (held == _joystickButtonBindings.end())
+				return false;
+			binding = held->second;
+			_joystickButtonBindings.erase(held);
+		}
+
+		if (binding.mouseButton != 0)
+		{
+			// Multiple controller buttons may hold the same logical mouse button.
+			_joystickMouseButtons = 0;
+			for (const auto &held : _joystickButtonBindings)
+			{
+				if (held.second.mouseButton != 0)
+					_joystickMouseButtons |= SDL_BUTTON(held.second.mouseButton);
+			}
+			Uint8 mask = SDL_BUTTON(binding.mouseButton);
+			bool wasDown = ((_mouseButtons | oldMouseButtons) & mask) != 0;
+			bool isDown = ((_mouseButtons | _joystickMouseButtons) & mask) != 0;
+			if (wasDown == isDown)
+				return false;
+
+			int x, y;
+			SDL_GetMouseState(&x, &y);
+			event = SDL_Event{};
+			event.type = isDown ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP;
+			event.button.button = binding.mouseButton;
+			event.button.state = isDown ? SDL_PRESSED : SDL_RELEASED;
+			event.button.x = (Uint16)x;
+			event.button.y = (Uint16)y;
+			return true;
+		}
+		if (binding.command >= 0)
+		{
+			if (pressed)
+			{
+				SDL_Event command = {};
+				command.type = SDL_USEREVENT;
+				command.user.code = binding.command;
+				command.user.data1 = binding.state;
+				command.user.data2 = binding.editor;
+				SDL_PushEvent(&command);
+			}
+			return false;
+		}
+		if (binding.key != SDLK_UNKNOWN)
+		{
+			event = SDL_Event{};
+			event.type = pressed ? SDL_KEYDOWN : SDL_KEYUP;
+			event.key.state = pressed ? SDL_PRESSED : SDL_RELEASED;
+			event.key.keysym.sym = binding.key;
+			event.key.keysym.mod = KMOD_NONE;
+			// Keep these ordered with the arrow events generated by the D-pad.
+			SDL_PushEvent(&event);
+		}
+		return false;
+	}
+	default:
+		break;
+	}
+	return true;
 }
 
 /**
@@ -163,26 +444,61 @@ void Game::run()
 		{
 			_init = true;
 			_states.back()->init();
+			if (auto *keyboard = dynamic_cast<VirtualKeyboardState*>(_states.back()))
+				keyboard->armDpadRepeat(SDL_HAT_CENTERED);
 
 			// Unpress buttons
 			_states.back()->resetAll();
 
 			// Refresh mouse position
 			SDL_Event ev;
+			SDL_memset(&ev, 0, sizeof(ev));
 			int x, y;
 			SDL_GetMouseState(&x, &y);
 			ev.type = SDL_MOUSEMOTION;
+			ev.motion.state = getMouseButtonState();
 			ev.motion.x = x;
 			ev.motion.y = y;
 			Action action = Action(&ev, _screen->getXScale(), _screen->getYScale(), _screen->getCursorTopBlackBand(), _screen->getCursorLeftBlackBand());
 			_states.back()->handle(&action);
 		}
 
-		// Process events
-		while (SDL_PollEvent(&_event))
+		// Pump devices once per frame. SDL 1.2's SDL_PollEvent pumps again on
+		// every call, so noisy joystick axes can keep the queue nonempty and
+		// prevent logic and cursor rendering from running.
+		SDL_PumpEvents();
+		if (_joystick)
 		{
+			// Loading, video playback and focus changes can discard release
+			// events. Recover them through the same latched input path.
+			for (const auto &held : _joystickButtonBindings)
+			{
+				if (SDL_JoystickGetButton(_joystick, held.first) == SDL_RELEASED)
+				{
+					SDL_Event release = {};
+					release.type = SDL_JOYBUTTONUP;
+					release.jbutton.which = (Uint8)SDL_JoystickIndex(_joystick);
+					release.jbutton.button = held.first;
+					release.jbutton.state = SDL_RELEASED;
+					SDL_PushEvent(&release);
+				}
+			}
+		}
+
+		// Include generated key events, but always leave time to redraw.
+		unsigned int eventsProcessed = 0;
+		while (eventsProcessed++ < 256 && SDL_PeepEvents(&_event, 1, SDL_GETEVENT, SDL_ALLEVENTS) > 0)
+		{
+			Log(LOG_DEBUG) << "SDL event type is " << static_cast<int>(_event.type);
+
 			if (CrossPlatform::isQuitShortcut(_event))
 				_event.type = SDL_QUIT;
+			if (!convertInputEvent(_event))
+			{
+				if (!_init)
+					break;
+				continue;
+			}
 			switch (_event.type)
 			{
 				case SDL_QUIT:
@@ -327,9 +643,82 @@ void Game::run()
 			}
 		}
 
+		// SDL's keyboard repeat does not apply to queued D-pad arrow events.
+		// Poll the device as well, so a missed release cannot keep navigation going.
+		if (auto *keyboard = dynamic_cast<VirtualKeyboardState*>(_states.back()))
+		{
+			Uint8 hat = SDL_HAT_CENTERED;
+			if (_joystick && SDL_JoystickNumHats(_joystick) > 0)
+			{
+				hat = SDL_JoystickGetHat(_joystick, 0);
+				if (hat == SDL_HAT_CENTERED && _joystickHatState != SDL_HAT_CENTERED)
+				{
+					// Recover a missed release in event order. Resetting the cached
+					// mask here could discard a press still in the bounded queue.
+					SDL_Event release = {};
+					release.type = SDL_JOYHATMOTION;
+					release.jhat.which = (Uint8)SDL_JoystickIndex(_joystick);
+					release.jhat.hat = 0;
+					release.jhat.value = SDL_HAT_CENTERED;
+					SDL_PushEvent(&release);
+				}
+			}
+			keyboard->repeatDpad(_init && runningState != PAUSED ? hat : SDL_HAT_CENTERED);
+		}
+
 		// Process rendering
 		if (runningState != PAUSED)
 		{
+			// Use the current device state even if another state consumed an
+			// axis event (for example while leaving a video or loading a game).
+			if (_joystick)
+			{
+				_joystickAxisX = SDL_JoystickGetAxis(_joystick, 0);
+				_joystickAxisY = SDL_JoystickGetAxis(_joystick, 1);
+			}
+			// Move cursor based on joystick left-stick axis values
+			if (_joystick && _mouseActive && (SDL_GetAppState() & SDL_APPINPUTFOCUS) &&
+			    (std::abs(_joystickAxisX) > Options::oxceJoystickDeadZone ||
+			     std::abs(_joystickAxisY) > Options::oxceJoystickDeadZone))
+			{
+				Uint32 now = SDL_GetTicks();
+				if (_joystickLastTime > 0)
+				{
+					float dt = (now - _joystickLastTime) / 1000.0f;
+					if (dt > 0.1f) dt = 0.1f; // cap to avoid large jumps after pauses
+
+					float axisX = (std::abs(_joystickAxisX) > Options::oxceJoystickDeadZone)
+					              ? (float)_joystickAxisX / 32767.0f : 0.0f;
+					float axisY = (std::abs(_joystickAxisY) > Options::oxceJoystickDeadZone)
+					              ? (float)_joystickAxisY / 32767.0f : 0.0f;
+
+					_joystickCursorFracX += axisX * Options::oxceJoystickCursorSpeed * dt;
+					_joystickCursorFracY += axisY * Options::oxceJoystickCursorSpeed * dt;
+
+					int dx = (int)_joystickCursorFracX;
+					int dy = (int)_joystickCursorFracY;
+					_joystickCursorFracX -= (float)dx;
+					_joystickCursorFracY -= (float)dy;
+
+					if (dx != 0 || dy != 0)
+					{
+						int mx, my;
+						SDL_GetMouseState(&mx, &my);
+						int targetX = std::max(0, std::min(mx + dx, _screen->getWidth() - 1));
+						int targetY = std::max(0, std::min(my + dy, _screen->getHeight() - 1));
+						if (targetX != mx || targetY != my)
+							SDL_WarpMouse((Uint16)targetX, (Uint16)targetY);
+					}
+				}
+				_joystickLastTime = now;
+			}
+			else
+			{
+				_joystickLastTime = 0;
+				_joystickCursorFracX = 0.0f;
+				_joystickCursorFracY = 0.0f;
+			}
+
 			// Process logic
 			_states.back()->think();
 			_fpsCounter->think();
@@ -516,6 +905,15 @@ void Game::setMouseActive(bool active)
 {
 	_mouseActive = active;
 	_cursor->setVisible(active);
+}
+
+/**
+ * Include controller holds when controls poll SDL's physical button state,
+ * for example during drag scrolling.
+ */
+Uint8 Game::getMouseButtonState() const
+{
+	return SDL_GetMouseState(nullptr, nullptr) | _joystickMouseButtons;
 }
 
 /**

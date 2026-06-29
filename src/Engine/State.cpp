@@ -144,6 +144,60 @@ void State::setWindowBackgroundImage(Window* window, const std::string& bgImageN
 	window->setBackground(bgImage);
 }
 
+void State::applyOverlayStyle(Window *window, TextButton *button) const
+{
+	const Window *sourceWindow = nullptr;
+	const TextButton *sourceButton = nullptr;
+	for (auto i = _surfaces.rbegin(); i != _surfaces.rend(); ++i)
+	{
+		if (auto *candidate = dynamic_cast<Window*>(*i))
+		{
+			if (!sourceWindow || (!sourceWindow->getVisible() && candidate->getVisible()))
+				sourceWindow = candidate;
+		}
+		if (auto *candidate = dynamic_cast<TextButton*>(*i))
+		{
+			if (!sourceButton || (!sourceButton->getVisible() && candidate->getVisible()))
+				sourceButton = candidate;
+		}
+	}
+	// Even an unavailable OK button provides the correct theme for a text
+	// editor. Runtime styles also preserve battlescape and mod overrides.
+	if (window && sourceWindow)
+		window->copyStyle(*sourceWindow);
+	if (button && sourceButton)
+		button->copyStyle(*sourceButton);
+
+	for (const RuleInterface *rule : { _ruleInterfaceParent, _ruleInterface })
+	{
+		if (!rule)
+			continue;
+		if (window && !sourceWindow)
+		{
+			const Element *element = rule->getElementOptional("window");
+			if (element && element->color != INT_MAX)
+				window->setColor(element->color);
+			const std::string &background = rule->getBackgroundImage(_game->getMod(), _game->getSavedGame());
+			if (!background.empty())
+			{
+				if (const Surface *image = _game->getMod()->getSurface(background, false))
+					window->setBackground(image);
+			}
+		}
+		if (button && !sourceButton)
+		{
+			if (const Element *element = rule->getElementOptional("button"))
+			{
+				if (element->color != INT_MAX)
+					button->setColor(element->color);
+				if (element->color2 != INT_MAX)
+					button->setTextColor(element->color2);
+				button->setTFTDMode(element->TFTDMode);
+			}
+		}
+	}
+}
+
 /**
  *  Add a optional child element but it will not be displayed.
  */
@@ -360,6 +414,82 @@ void State::handle(Action *action)
 	{
 		_modal->handle(action, this);
 	}
+}
+
+/**
+ * Dialog actions require a window so controller clicks remain available on
+ * the globe, battlefield and base view. Open comboboxes retain modal input;
+ * text editors allow direct dialog actions without receiving synthetic keys.
+ */
+TextButton *State::getControllerButton(bool confirm) const
+{
+	if (_modal && !dynamic_cast<TextEdit*>(_modal))
+		return nullptr;
+
+	bool hasWindow = false;
+	for (auto *surface : _surfaces)
+	{
+		if (dynamic_cast<Window*>(surface))
+		{
+			hasWindow = true;
+			break;
+		}
+	}
+	if (!hasWindow)
+		return nullptr;
+
+	for (auto i = _surfaces.rbegin(); i != _surfaces.rend(); ++i)
+	{
+		auto *button = dynamic_cast<TextButton*>(*i);
+		if (button && button->isControllerButtonHandled(confirm))
+			return button;
+	}
+	return nullptr;
+}
+
+/**
+ * A controller click takes priority over the default dialog action when the
+ * cursor is over a control. Use current coordinates, not cached hover state.
+ */
+bool State::isMouseTarget(double x, double y, Uint8 button) const
+{
+	if (_modal && !dynamic_cast<TextEdit*>(_modal))
+		return _modal->isMouseTarget(x, y, button);
+
+	// A click outside a modal editor first removes its focus, just as with a
+	// physical mouse. Do not confirm the dialog instead of that click.
+	for (auto i = _surfaces.rbegin(); i != _surfaces.rend(); ++i)
+	{
+		auto *surface = dynamic_cast<InteractiveSurface*>(*i);
+		if (surface && surface->isMouseTarget(x, y, button))
+			return true;
+	}
+	return false;
+}
+
+TextEdit *State::getFocusedTextEdit() const
+{
+	if (_modal)
+	{
+		auto *editor = dynamic_cast<TextEdit*>(_modal);
+		return editor && editor->isControllerEditable() ? editor : nullptr;
+	}
+	for (auto i = _surfaces.rbegin(); i != _surfaces.rend(); ++i)
+	{
+		auto *editor = dynamic_cast<TextEdit*>(*i);
+		if (editor && editor->isControllerEditable())
+			return editor;
+	}
+	return nullptr;
+}
+
+bool State::handleControllerButton(bool confirm, Action *action)
+{
+	TextButton *button = getControllerButton(confirm);
+	if (!button)
+		return false;
+	button->controllerButtonPress(action, this, confirm);
+	return true;
 }
 
 /**

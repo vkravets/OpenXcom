@@ -18,6 +18,8 @@
  */
 #include "InteractiveSurface.h"
 #include "Action.h"
+#include "Game.h"
+#include "State.h"
 
 namespace OpenXcom
 {
@@ -54,6 +56,14 @@ bool InteractiveSurface::isButtonHandled(Uint8 button)
 				   _release.find(button) != _release.end());
 	}
 	return handled;
+}
+
+bool InteractiveSurface::isMouseTarget(double x, double y, Uint8 button)
+{
+	return _visible && !_hidden &&
+		x >= getX() && x < getX() + getWidth() &&
+		y >= getY() && y < getY() + getHeight() &&
+		isButtonHandled(button);
 }
 
 bool InteractiveSurface::isButtonPressed(Uint8 button) const
@@ -131,7 +141,7 @@ void InteractiveSurface::handle(Action *action, State *state)
 			}
 			if (_listButton && action->getDetails()->type == SDL_MOUSEMOTION)
 			{
-				_buttonsPressed = SDL_GetMouseState(0, 0);
+				_buttonsPressed = State::getGame()->getMouseButtonState();
 				for (Uint8 i = 1; i <= NUM_BUTTONS; ++i)
 				{
 					if (isButtonPressed(i))

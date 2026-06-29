@@ -71,6 +71,16 @@ Window::~Window()
 	delete _timer;
 }
 
+void Window::copyStyle(const Window &source)
+{
+	_color = source._color;
+	_contrast = source._contrast;
+	_thinBorder = source._thinBorder;
+	_innerColor = source._innerColor;
+	_bg = source._bg;
+	_redraw = true;
+}
+
 /**
  * Changes the surface used to draw the background of the window.
  * @param bg New background.

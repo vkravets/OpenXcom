@@ -43,6 +43,11 @@ private:
 	TextButton **_group;
 	bool _contrast, _geoscapeButton;
 	ComboBox *_comboBox;
+	int _textPaddingX, _textPaddingY;
+	std::map<bool, ActionHandler> _controllerPress;
+	void updateTextBounds();
+	/// Finds an enabled explicit or keyboard-derived controller action.
+	ActionHandler getControllerHandler(bool confirm) const;
 	// for use by RuleInterface
 	void setSecondaryColor(Uint8 color)  override { setTextColor(color); }
 protected:
@@ -53,6 +58,10 @@ public:
 	TextButton(int width, int height, int x = 0, int y = 0);
 	/// Cleans up the text button.
 	~TextButton();
+	/// Copies appearance while preserving this button's layout and actions.
+	void copyStyle(const TextButton &source);
+	/// Sets the space around the centered label, in logical pixels.
+	void setTextPadding(int horizontal, int vertical);
 	/// Sets the text button's color.
 	void setColor(Uint8 color) override;
 	/// Gets the text button's color.
@@ -83,6 +92,12 @@ public:
 	void mousePress(Action *action, State *state) override;
 	/// Special handling for mouse releases.
 	void mouseRelease(Action *action, State *state) override;
+	/// Overrides the controller confirm/cancel action; a null handler disables it.
+	void onControllerPress(ActionHandler handler, bool confirm);
+	/// Checks whether this visible, focused button handles a controller action.
+	bool isControllerButtonHandled(bool confirm) const;
+	/// Invokes the controller action without sending a key to text fields.
+	void controllerButtonPress(Action *action, State *state, bool confirm);
 	/// Attaches this button to a combobox.
 	void setComboBox(ComboBox *comboBox);
 	void setWidth(int width) override;

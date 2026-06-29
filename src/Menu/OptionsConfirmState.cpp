@@ -66,9 +66,11 @@ OptionsConfirmState::OptionsConfirmState(OptionsOrigin origin) : _origin(origin)
 
 	_btnYes->setText(tr("STR_YES"));
 	_btnYes->onMouseClick((ActionHandler)&OptionsConfirmState::btnYesClick);
+	_btnYes->onControllerPress((ActionHandler)&OptionsConfirmState::btnYesClick, true);
 
 	_btnNo->setText(tr("STR_NO"));
 	_btnNo->onMouseClick((ActionHandler)&OptionsConfirmState::btnNoClick);
+	_btnNo->onControllerPress((ActionHandler)&OptionsConfirmState::btnNoClick, false);
 	// no keyboard shortcuts to make sure users can see the message
 
 	_txtTitle->setAlign(ALIGN_CENTER);
