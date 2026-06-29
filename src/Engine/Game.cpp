@@ -57,7 +57,9 @@ const double Game::VOLUME_GRADIENT = 10.0;
  * @param title Title of the game window.
  */
 Game::Game(const std::string &title) : _screen(0), _cursor(0), _lang(0), _save(0), _mod(0), _quit(false), _init(false), _update(false),  _mouseActive(true), _timeUntilNextFrame(0),
-	_ctrl(false), _alt(false), _shift(false), _rmb(false), _mmb(false), _scrollStep(1)
+	_ctrl(false), _alt(false), _shift(false), _rmb(false), _mmb(false), _scrollStep(1),
+	_joystick(nullptr), _joystickAxisX(0), _joystickAxisY(0), _joystickHatState(SDL_HAT_CENTERED),
+	_joystickCursorFracX(0.0f), _joystickCursorFracY(0.0f), _joystickLastTime(0)
 {
 	Options::reload = false;
 	Options::mute = false;
@@ -105,6 +107,32 @@ Game::Game(const std::string &title) : _screen(0), _cursor(0), _lang(0), _save(0
 	_lang = new Language();
 
 	_timeOfLastFrame = 0;
+
+	// Initialize joystick subsystem
+	if (Options::oxceJoystickEnabled)
+	{
+		if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) < 0)
+		{
+			Log(LOG_WARNING) << "Could not initialize joystick subsystem: " << SDL_GetError();
+		}
+		else if (SDL_NumJoysticks() > 0)
+		{
+			_joystick = SDL_JoystickOpen(0);
+			if (_joystick)
+			{
+				Log(LOG_INFO) << "Joystick opened: " << SDL_JoystickName(0);
+				SDL_JoystickEventState(SDL_ENABLE);
+			}
+			else
+			{
+				Log(LOG_WARNING) << "Could not open joystick 0: " << SDL_GetError();
+			}
+		}
+		else
+		{
+			Log(LOG_INFO) << "No joysticks found.";
+		}
+	}
 }
 
 /**
@@ -128,6 +156,12 @@ Game::~Game()
 	delete _mod;
 	delete _screen;
 	delete _fpsCounter;
+
+	if (_joystick)
+	{
+		SDL_JoystickClose(_joystick);
+		_joystick = nullptr;
+	}
 
 	Mix_CloseAudio();
 
@@ -272,6 +306,94 @@ void Game::run()
 					runningState = RUNNING;
 					// Go on, feed the event to others
 					FALLTHROUGH;
+				case SDL_JOYAXISMOTION:
+					// Track the left stick axes for per-frame cursor movement
+					if (_joystick)
+					{
+						if (_event.jaxis.axis == 0)
+							_joystickAxisX = _event.jaxis.value;
+						else if (_event.jaxis.axis == 1)
+							_joystickAxisY = _event.jaxis.value;
+					}
+					break;
+				case SDL_JOYHATMOTION:
+					// Map D-pad hat directions to arrow key presses/releases
+					if (_joystick)
+					{
+						struct HatKey { Uint8 mask; SDLKey key; };
+						static const HatKey hatKeys[4] =
+						{
+							{ SDL_HAT_UP,    SDLK_UP    },
+							{ SDL_HAT_DOWN,  SDLK_DOWN  },
+							{ SDL_HAT_LEFT,  SDLK_LEFT  },
+							{ SDL_HAT_RIGHT, SDLK_RIGHT },
+						};
+						Uint8 oldHat = _joystickHatState;
+						Uint8 newHat = _event.jhat.value;
+						_joystickHatState = newHat;
+						for (int h = 0; h < 4; ++h)
+						{
+							bool wasDown = (oldHat & hatKeys[h].mask) != 0;
+							bool isDown  = (newHat & hatKeys[h].mask) != 0;
+							if (wasDown != isDown)
+							{
+								SDL_Event keyEv;
+								SDL_memset(&keyEv, 0, sizeof(keyEv));
+								keyEv.type = isDown ? SDL_KEYDOWN : SDL_KEYUP;
+								keyEv.key.state = isDown ? SDL_PRESSED : SDL_RELEASED;
+								keyEv.key.keysym.sym = hatKeys[h].key;
+								keyEv.key.keysym.mod = KMOD_NONE;
+								SDL_PushEvent(&keyEv);
+							}
+						}
+					}
+					break;
+				case SDL_JOYBUTTONDOWN:
+				case SDL_JOYBUTTONUP:
+					// Map joystick buttons to mouse clicks and keyboard keys
+					if (_joystick)
+					{
+						bool pressed = (_event.type == SDL_JOYBUTTONDOWN);
+						Uint8 btn = _event.jbutton.button;
+						if (btn == 0 || btn == 1)
+						{
+							// Button 0 (A/Cross) → left click, Button 1 (B/Circle) → right click
+							int mx, my;
+							SDL_GetMouseState(&mx, &my);
+							SDL_Event mouseEv;
+							SDL_memset(&mouseEv, 0, sizeof(mouseEv));
+							mouseEv.type = pressed ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP;
+							mouseEv.button.button = (btn == 0) ? SDL_BUTTON_LEFT : SDL_BUTTON_RIGHT;
+							mouseEv.button.state  = pressed ? SDL_PRESSED : SDL_RELEASED;
+							mouseEv.button.x = (Uint16)mx;
+							mouseEv.button.y = (Uint16)my;
+							SDL_PushEvent(&mouseEv);
+						}
+						else
+						{
+							// Map remaining buttons to keyboard keys
+							SDLKey key = SDLK_UNKNOWN;
+							switch (btn)
+							{
+								case 2: key = SDLK_SPACE;  break; // X/Square
+								case 3: key = SDLK_RETURN; break; // Y/Triangle
+								case 6: case 7:
+								case 8: case 9: key = SDLK_ESCAPE; break; // Back/Start
+								default: break;
+							}
+							if (key != SDLK_UNKNOWN)
+							{
+								SDL_Event keyEv;
+								SDL_memset(&keyEv, 0, sizeof(keyEv));
+								keyEv.type = pressed ? SDL_KEYDOWN : SDL_KEYUP;
+								keyEv.key.state = pressed ? SDL_PRESSED : SDL_RELEASED;
+								keyEv.key.keysym.sym = key;
+								keyEv.key.keysym.mod = KMOD_NONE;
+								SDL_PushEvent(&keyEv);
+							}
+						}
+					}
+					break;
 				default:
 					Action action = Action(&_event, _screen->getXScale(), _screen->getYScale(), _screen->getCursorTopBlackBand(), _screen->getCursorLeftBlackBand());
 					_screen->handle(&action);
@@ -331,6 +453,48 @@ void Game::run()
 		// Process rendering
 		if (runningState != PAUSED)
 		{
+			// Move cursor based on joystick left-stick axis values
+			if (_joystick &&
+			    (std::abs(_joystickAxisX) > Options::oxceJoystickDeadZone ||
+			     std::abs(_joystickAxisY) > Options::oxceJoystickDeadZone))
+			{
+				Uint32 now = SDL_GetTicks();
+				if (_joystickLastTime > 0)
+				{
+					float dt = (now - _joystickLastTime) / 1000.0f;
+					if (dt > 0.1f) dt = 0.1f; // cap to avoid large jumps after pauses
+
+					float axisX = (std::abs(_joystickAxisX) > Options::oxceJoystickDeadZone)
+					              ? (float)_joystickAxisX / 32767.0f : 0.0f;
+					float axisY = (std::abs(_joystickAxisY) > Options::oxceJoystickDeadZone)
+					              ? (float)_joystickAxisY / 32767.0f : 0.0f;
+
+					_joystickCursorFracX += axisX * Options::oxceJoystickCursorSpeed * dt;
+					_joystickCursorFracY += axisY * Options::oxceJoystickCursorSpeed * dt;
+
+					int dx = (int)_joystickCursorFracX;
+					int dy = (int)_joystickCursorFracY;
+					_joystickCursorFracX -= (float)dx;
+					_joystickCursorFracY -= (float)dy;
+
+					if (dx != 0 || dy != 0)
+					{
+						int mx, my;
+						SDL_GetMouseState(&mx, &my);
+						mx = std::max(0, std::min(mx + dx, _screen->getWidth() - 1));
+						my = std::max(0, std::min(my + dy, _screen->getHeight() - 1));
+						SDL_WarpMouse((Uint16)mx, (Uint16)my);
+					}
+				}
+				_joystickLastTime = now;
+			}
+			else
+			{
+				_joystickLastTime = 0;
+				_joystickCursorFracX = 0.0f;
+				_joystickCursorFracY = 0.0f;
+			}
+
 			// Process logic
 			_states.back()->think();
 			_fpsCounter->think();

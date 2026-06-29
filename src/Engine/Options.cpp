@@ -431,6 +431,11 @@ void createOptionsOXCE()
 
 	// TODO: needs restart (or code change) to work properly
 	_info.push_back(OptionInfo(OPTION_OXCE, "oxceMaxEquipmentLayoutTemplates", &oxceMaxEquipmentLayoutTemplates, 20, "", "HIDDEN"));
+
+	// Joystick/gamepad support
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickEnabled", &oxceJoystickEnabled, false, "", "HIDDEN"));
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickDeadZone", &oxceJoystickDeadZone, 8000, "", "HIDDEN"));
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickCursorSpeed", &oxceJoystickCursorSpeed, 400, "", "HIDDEN"));
 }
 
 void createAdvancedOptionsOXCE()

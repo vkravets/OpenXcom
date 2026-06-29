@@ -174,6 +174,11 @@ OPT bool oxceInventoryUnloadFixedWeapons;
 
 OPT int oxceMaxEquipmentLayoutTemplates;
 
+// Joystick/gamepad support (OXCE hidden, configurable via options.cfg)
+OPT bool oxceJoystickEnabled;
+OPT int oxceJoystickDeadZone;
+OPT int oxceJoystickCursorSpeed;
+
 // Flags and other stuff that don't need OptionInfo's.
 OPT bool mute, reload, newOpenGL, newScaleFilter, newHQXFilter, newXBRZFilter, newRootWindowedMode, newFullscreen, newAllowResize, newBorderless;
 OPT int newDisplayWidth, newDisplayHeight, newBattlescapeScale, newGeoscapeScale, newWindowedModePositionX, newWindowedModePositionY;
