@@ -18,6 +18,7 @@
  */
 #include "TextEdit.h"
 #include <cmath>
+#include <SDL.h>
 #include "../Engine/Action.h"
 #include "../Engine/Font.h"
 #include "../Engine/Timer.h"
@@ -98,6 +99,10 @@ void TextEdit::setFocus(bool focus, bool modal)
 			_timer->start();
 			if (_modal)
 				_state->setModal(this);
+#if SDL_VERSION_ATLEAST(2,0,0)
+			if (Options::keyboardMode == KEYBOARD_VIRTUAL)
+				SDL_StartTextInput();
+#endif
 		}
 		else
 		{
@@ -106,6 +111,10 @@ void TextEdit::setFocus(bool focus, bool modal)
 			SDL_EnableKeyRepeat(0, SDL_DEFAULT_REPEAT_INTERVAL);
 			if (_modal)
 				_state->setModal(0);
+#if SDL_VERSION_ATLEAST(2,0,0)
+			if (Options::keyboardMode == KEYBOARD_VIRTUAL)
+				SDL_StopTextInput();
+#endif
 		}
 	}
 }
@@ -326,7 +335,7 @@ void TextEdit::draw()
 	}
 
 	_text->blit(this->getSurface());
-	if (Options::keyboardMode == KEYBOARD_ON)
+	if (Options::keyboardMode == KEYBOARD_ON || Options::keyboardMode == KEYBOARD_VIRTUAL)
 	{
 		if (_isFocused && _blink)
 		{
@@ -506,7 +515,7 @@ void TextEdit::keyboardPress(Action *action, State *state)
 			break;
 		}
 	}
-	else if (Options::keyboardMode == KEYBOARD_ON)
+	else if (Options::keyboardMode == KEYBOARD_ON || Options::keyboardMode == KEYBOARD_VIRTUAL)
 	{
 		switch (action->getDetails()->key.keysym.sym)
 		{
