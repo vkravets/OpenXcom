@@ -579,6 +579,7 @@
     <ClCompile Include="Interface\Text.cpp" />
     <ClCompile Include="Interface\TextButton.cpp" />
     <ClCompile Include="Interface\TextEdit.cpp" />
+    <ClCompile Include="Interface\VirtualKeyboardState.cpp" />
     <ClCompile Include="Interface\TextList.cpp" />
     <ClCompile Include="Interface\ToggleTextButton.cpp" />
     <ClCompile Include="Interface\Window.cpp" />
@@ -1071,6 +1072,7 @@
     <ClInclude Include="Interface\Text.h" />
     <ClInclude Include="Interface\TextButton.h" />
     <ClInclude Include="Interface\TextEdit.h" />
+    <ClInclude Include="Interface\VirtualKeyboardState.h" />
     <ClInclude Include="Interface\TextList.h" />
     <ClInclude Include="Interface\ToggleTextButton.h" />
     <ClInclude Include="Interface\Window.h" />
