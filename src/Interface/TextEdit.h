@@ -107,6 +107,8 @@ public:
 	void onEnter(ActionHandler handler);
 	/// Sets the text edit's background drawing setting.
 	void setDrawBackground(bool drawBackground) { _drawBackground = drawBackground; }
+	/// Directly processes a virtual key (used by VirtualKeyboardState).
+	void typeVirtualKey(SDLKey sym, Uint16 unicode);
 };
 
 }

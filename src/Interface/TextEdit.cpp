@@ -23,7 +23,9 @@
 #include "../Engine/Font.h"
 #include "../Engine/Timer.h"
 #include "../Engine/Options.h"
+#include "../Engine/Game.h"
 #include "../fallthrough.h"
+#include "VirtualKeyboardState.h"
 
 namespace OpenXcom
 {
@@ -103,6 +105,8 @@ void TextEdit::setFocus(bool focus, bool modal)
 			if (Options::keyboardMode == KEYBOARD_VIRTUAL)
 				SDL_StartTextInput();
 #endif
+			if (Options::keyboardMode == KEYBOARD_VIRTUAL)
+				State::getGame()->pushState(new VirtualKeyboardState(this, _state->getPalette()));
 		}
 		else
 		{
@@ -598,12 +602,84 @@ void TextEdit::onChange(ActionHandler handler)
 }
 
 /**
-* Sets a function to be called every time ENTER is pressed.
-* @param handler Action handler.
-*/
+ * Sets a function to be called every time ENTER is pressed.
+ * @param handler Action handler.
+ */
 void TextEdit::onEnter(ActionHandler handler)
 {
 	_enter = handler;
+}
+
+/**
+ * Directly processes a key sent by the virtual on-screen keyboard.
+ * Mirrors the KEYBOARD_ON/VIRTUAL branch of keyboardPress() but
+ * does not require a real SDL event or Action.
+ * @param sym SDL key symbol (used for special keys).
+ * @param unicode Unicode codepoint (used for printable characters).
+ */
+void TextEdit::typeVirtualKey(SDLKey sym, Uint16 unicode)
+{
+	bool enterPressed = false;
+	switch (sym)
+	{
+	case SDLK_LEFT:
+		if (_caretPos > 0)
+			_caretPos--;
+		break;
+	case SDLK_RIGHT:
+		if (_caretPos < _value.length())
+			_caretPos++;
+		break;
+	case SDLK_HOME:
+		_caretPos = 0;
+		break;
+	case SDLK_END:
+		_caretPos = _value.length();
+		break;
+	case SDLK_BACKSPACE:
+		if (_caretPos > 0)
+		{
+			_value.erase(_caretPos - 1, 1);
+			_caretPos--;
+		}
+		break;
+	case SDLK_DELETE:
+		if (_caretPos < _value.length())
+			_value.erase(_caretPos, 1);
+		break;
+	case SDLK_ESCAPE:
+		_value = Unicode::convUtf8ToUtf32("");
+		_caretPos = 0;
+		FALLTHROUGH;
+		// no break; fall through to ENTER action
+	case SDLK_RETURN:
+	case SDLK_KP_ENTER:
+		if (!_value.empty() || _enter != 0)
+		{
+			enterPressed = true;
+			setFocus(false);
+		}
+		break;
+	default:
+	{
+		UCode c = static_cast<UCode>(unicode);
+		if (c && isValidChar(c) && !exceedsMaxWidth(c))
+		{
+			_value.insert(_caretPos, 1, c);
+			_caretPos++;
+		}
+		break;
+	}
+	}
+	_redraw = true;
+	if (_change)
+	{
+		(_state->*_change)(nullptr);
+	}
+	if (_enter && enterPressed)
+	{
+		(_state->*_enter)(nullptr);
+	}
 }
 
 }
