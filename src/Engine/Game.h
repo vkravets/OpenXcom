@@ -58,6 +58,11 @@ private:
 	int _timeUntilNextFrame;
 	bool _ctrl, _alt, _shift, _rmb, _mmb;
 	int _scrollStep;
+	SDL_Joystick *_joystick;
+	Sint16 _joystickAxisX, _joystickAxisY;
+	Uint8 _joystickHatState;
+	float _joystickCursorFracX, _joystickCursorFracY;
+	Uint32 _joystickLastTime;
 	static const double VOLUME_GRADIENT;
 
 public:
