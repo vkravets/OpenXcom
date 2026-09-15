@@ -4277,7 +4277,7 @@ bool GeoscapeState::attemptAlienRaceEvolution(int month, AlienBase* ab) const
 {
 	for (const auto& tuple : ab->getDeployment()->getAlienRaceEvolution())
 	{
-		if (std::get<0>(tuple) <= month && std::get<1>(tuple) == ab->getAlienRace())
+		if ((int)std::get<0>(tuple) <= month && std::get<1>(tuple) == ab->getAlienRace())
 		{
 			auto* newRace = _game->getMod()->getAlienRace(std::get<2>(tuple), false);
 			if (newRace)
