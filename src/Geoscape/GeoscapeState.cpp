@@ -3575,7 +3575,7 @@ void GeoscapeState::handleBaseDefense(Base *base, Ufo *ufo)
 /**
  * Determine the alien missions to start this month.
  */
-void GeoscapeState::determineAlienMissions(bool isNewMonth, const RuleEvent* eventRules)
+void GeoscapeState::determineAlienMissions(bool isNewMonth, const RuleEvent* p_eventRules)
 {
 	SavedGame *save = _game->getSavedGame();
 	AlienStrategy &strategy = save->getAlienStrategy();
@@ -3824,10 +3824,10 @@ void GeoscapeState::determineAlienMissions(bool isNewMonth, const RuleEvent* eve
 		RuleMissionScript *command = isNewMonth ? mod->getMissionScript(missionScriptName) : mod->getAdhocScript(missionScriptName);
 
 		// level zero condition check: filter adhoc mission scripts by tags
-		if (!isNewMonth && eventRules)
+		if (!isNewMonth && p_eventRules)
 		{
 			bool matchFound = false;
-			for (auto& atag : eventRules->getAdhocMissionScriptTags())
+			for (auto& atag : p_eventRules->getAdhocMissionScriptTags())
 			{
 				for (auto& btag : command->getAdhocMissionScriptTags())
 				{
