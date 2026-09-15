@@ -1927,7 +1927,7 @@ void Map::persistToggles()
  * @param original tile/item/unit shade
  */
 
-int Map::reShade(Tile *tile)
+int Map::reShade(Tile *tile) const
 {
 	// when modders just don't know where to stop...
 	if (_debugVisionMode > 0)
