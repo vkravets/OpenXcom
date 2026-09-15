@@ -206,6 +206,7 @@ public:
 	bool getBlastFlash() const;
 	/// Modify shade for fading
 	int reShade(Tile *tile);
+	int reShadeMinimap(int maxShade) const;
 	/// toggle the night-vision mode
 	void enableNightVision();
 	void toggleNightVision();

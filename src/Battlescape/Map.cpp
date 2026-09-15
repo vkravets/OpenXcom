@@ -1969,6 +1969,25 @@ int Map::reShade(Tile *tile)
 	return std::min(+NIGHT_VISION_MAX_SHADE, tile->getShade());
 }
 
+int Map::reShadeMinimap(int maxShade) const
+{
+	if (_debugVisionMode > 0)
+	{
+		if (_debugVisionMode == 1)
+		{
+			return maxShade / 2;
+		}
+		return 0;
+	}
+
+	if (_nvColor == 0)
+	{
+		return maxShade;
+	}
+
+	return std::min(+NIGHT_VISION_MAX_SHADE / 2, maxShade);
+}
+
 /**
  * Handles keyboard releases on the map.
  * @param action Pointer to an action.
