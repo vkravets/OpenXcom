@@ -17,6 +17,7 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "RuleArcScript.h"
+#include "Mod.h"
 #include <climits>
 
 namespace OpenXcom
@@ -73,13 +74,32 @@ void RuleArcScript::load(const YAML::YamlNodeReader& node)
 	reader.tryRead("counterMin", _counterMin);
 	reader.tryRead("counterMax", _counterMax);
 
-	reader.tryRead("researchTriggers", _researchTriggers);
+	reader.tryRead("researchTriggers", _researchTriggerNames);
 	reader.tryRead("itemTriggers", _itemTriggers);
 	reader.tryRead("facilityTriggers", _facilityTriggers);
 	reader.tryRead("soldierTypeTriggers", _soldierTypeTriggers);
 	reader.tryRead("xcomBaseInRegionTriggers", _xcomBaseInRegionTriggers);
 	reader.tryRead("xcomBaseInCountryTriggers", _xcomBaseInCountryTriggers);
 	reader.tryRead("pactCountryTriggers", _pactCountryTriggers);
+}
+
+/**
+ * Cross link with other Rules.
+ */
+void RuleArcScript::afterLoad(const Mod* mod)
+{
+	// Link manually
+	for (auto& entry : _researchTriggerNames)
+	{
+		auto* research = mod->getResearch(entry.first, true); // crash if doesn't exist
+		if (research)
+		{
+			_researchTriggers[research] = entry.second;
+		}
+	}
+
+	//remove not needed data
+	Collections::removeAll(_researchTriggerNames);
 }
 
 }

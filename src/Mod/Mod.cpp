@@ -2330,6 +2330,9 @@ void Mod::loadAll()
 	afterLoadHelper("crafts", this, _crafts, &RuleCraft::afterLoad);
 	afterLoadHelper("events", this, _events, &RuleEvent::afterLoad);
 	afterLoadHelper("voiceSets", this, _voiceSets, &RuleVoiceSet::afterLoad);
+	afterLoadHelper("missionScripts", this, _missionScripts, &RuleMissionScript::afterLoad);
+	afterLoadHelper("eventScripts", this, _eventScripts, &RuleEventScript::afterLoad);
+	afterLoadHelper("arcScripts", this, _arcScripts, &RuleArcScript::afterLoad);
 
 	for (auto& a : _armors)
 	{

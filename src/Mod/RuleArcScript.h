@@ -26,6 +26,9 @@
 namespace OpenXcom
 {
 
+class Mod;
+class RuleResearch;
+
 class RuleArcScript
 {
 private:
@@ -38,7 +41,8 @@ private:
 	std::string _missionVarName, _missionMarkerName;
 	int _counterMin, _counterMax;
 
-	std::map<std::string, bool> _researchTriggers;
+	std::map<std::string, bool> _researchTriggerNames;
+	std::map<const RuleResearch*, bool> _researchTriggers;
 	std::map<std::string, bool> _itemTriggers;
 	std::map<std::string, bool> _facilityTriggers;
 	std::map<std::string, bool> _soldierTypeTriggers;
@@ -53,6 +57,8 @@ public:
 	~RuleArcScript();
 	/// Loads an arc script from yaml.
 	void load(const YAML::YamlNodeReader& reader);
+	/// Cross link with other rules.
+	void afterLoad(const Mod* mod);
 	/// Gets the name of the script command.
 	const std::string &getType() const { return _type; }
 	/// Gets the sequential arcs list.
@@ -89,7 +95,7 @@ public:
 	int getCounterMax() const { return _counterMax; }
 
 	/// Gets the research triggers that may apply to this command.
-	const std::map<std::string, bool> &getResearchTriggers() const { return _researchTriggers; }
+	const std::map<const RuleResearch*, bool> &getResearchTriggers() const { return _researchTriggers; }
 	/// Gets the item triggers that may apply to this command.
 	const std::map<std::string, bool> &getItemTriggers() const { return _itemTriggers; }
 	/// Gets the facility triggers that may apply to this command.

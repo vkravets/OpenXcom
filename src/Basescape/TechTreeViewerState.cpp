@@ -1109,7 +1109,7 @@ void TechTreeViewerState::initLists()
 			{
 				for (auto& trigger : arcScript->getResearchTriggers())
 				{
-					if (trigger.first == _selectedTopic)
+					if (trigger.first->getName() == _selectedTopic)
 					{
 						if (trigger.second)
 							unlocksArcs.insert(arcScriptId);
@@ -1126,7 +1126,7 @@ void TechTreeViewerState::initLists()
 			{
 				for (auto& trigger : eventScript->getResearchTriggers())
 				{
-					if (trigger.first == _selectedTopic)
+					if (trigger.first->getName() == _selectedTopic)
 					{
 						if (eventScript->getAffectsGameProgression()) affectsGameProgression = true; // remember for later
 						if (trigger.second)
@@ -1144,7 +1144,7 @@ void TechTreeViewerState::initLists()
 			{
 				for (auto& trigger : missionScript->getResearchTriggers())
 				{
-					if (trigger.first == _selectedTopic)
+					if (trigger.first->getName() == _selectedTopic)
 					{
 						if (trigger.second)
 							unlocksMissions.insert(missionScriptId);
