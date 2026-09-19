@@ -394,7 +394,7 @@ void TechTreeViewerState::initLists()
 		for (auto& j : manufactureList)
 		{
 			RuleManufacture *temp = _game->getMod()->getManufacture(j);
-			for (auto& i : temp->getRequirements())
+			for (auto* i : temp->getRequirements())
 			{
 				if (i == rule)
 				{
@@ -418,14 +418,14 @@ void TechTreeViewerState::initLists()
 		for (auto& item : _game->getMod()->getItemsList())
 		{
 			RuleItem *temp = _game->getMod()->getItem(item);
-			for (auto& i : temp->getRequirements())
+			for (auto* i : temp->getRequirements())
 			{
 				if (i == rule)
 				{
 					requiredByItems.push_back(item);
 				}
 			}
-			for (auto& i : temp->getBuyRequirements())
+			for (auto* i : temp->getBuyRequirements())
 			{
 				if (i == rule)
 				{
@@ -461,28 +461,28 @@ void TechTreeViewerState::initLists()
 		for (auto& j : researchList)
 		{
 			RuleResearch *temp = _game->getMod()->getResearch(j);
-			for (auto& i : temp->getUnlocked())
+			for (auto* i : temp->getUnlocked())
 			{
 				if (i == rule)
 				{
 					unlockedBy.push_back(j);
 				}
 			}
-			for (auto& i : temp->getDisabled())
+			for (auto* i : temp->getDisabled())
 			{
 				if (i == rule)
 				{
 					disabledBy.push_back(j);
 				}
 			}
-			for (auto& i : temp->getReenabled())
+			for (auto* i : temp->getReenabled())
 			{
 				if (i == rule)
 				{
 					reenabledBy.push_back(j);
 				}
 			}
-			for (auto& i : temp->getGetOneFree())
+			for (auto* i : temp->getGetOneFree())
 			{
 				if (i == rule)
 				{
@@ -491,7 +491,7 @@ void TechTreeViewerState::initLists()
 			}
 			for (auto& itMap : temp->getGetOneFreeProtected())
 			{
-				for (auto& i : itMap.second)
+				for (auto* i : itMap.second)
 				{
 					if (i == rule)
 					{
@@ -506,14 +506,14 @@ void TechTreeViewerState::initLists()
 					lookupOf.push_back(j);
 				}
 			}
-			for (auto& i : temp->getRequirements())
+			for (auto* i : temp->getRequirements())
 			{
 				if (i == rule)
 				{
 					requiredByResearch.push_back(j);
 				}
 			}
-			for (auto& i : temp->getDependencies())
+			for (auto* i : temp->getDependencies())
 			{
 				if (i == rule)
 				{
