@@ -3149,8 +3149,7 @@ void SavedGame::setDisableSoldierEquipment(bool disableSoldierEquipment)
  */
 bool SavedGame::isManaUnlocked(Mod *mod) const
 {
-	auto& researchName = mod->getManaUnlockResearch();
-	if (Mod::isEmptyRuleName(researchName) || isResearched(researchName))
+	if (!mod->getManaUnlockResearch() || isResearched(mod->getManaUnlockResearch()))
 	{
 		return true;
 	}
@@ -3283,7 +3282,7 @@ bool SavedGame::canSpawnInstantEvent(const RuleEvent* eventRules)
 	}
 
 	bool interrupted = false;
-	if (!eventRules->getInterruptResearch().empty())
+	if (eventRules->getInterruptResearch())
 	{
 		if (isResearched(eventRules->getInterruptResearch(), false))
 		{

@@ -54,7 +54,7 @@ void RuleArcScript::load(const YAML::YamlNodeReader& node)
 		load(parent);
 	}
 
-	reader.tryRead("sequentialArcs", _sequentialArcs);
+	reader.tryRead("sequentialArcs", _sequentialArcNames);
 	if (reader["randomArcs"])
 	{
 		_randomArcs.load(reader["randomArcs"]);
@@ -88,6 +88,14 @@ void RuleArcScript::load(const YAML::YamlNodeReader& node)
  */
 void RuleArcScript::afterLoad(const Mod* mod)
 {
+	mod->linkRule(_sequentialArcs, _sequentialArcNames);
+
+	// No link, only check
+	for (auto& name : _randomArcs.getNames())
+	{
+		auto* research = mod->getResearch(name, true); // crash if doesn't exist
+	}
+
 	// Link manually
 	for (auto& entry : _researchTriggerNames)
 	{

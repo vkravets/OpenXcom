@@ -2389,6 +2389,12 @@ void Mod::loadAll()
 		}
 	}
 
+	// afterLoad() for Mod.h members
+	linkRule(_fakeUnderwaterBaseUnlockResearch, _fakeUnderwaterBaseUnlockResearchName);
+	linkRule(_newBaseUnlockResearch, _newBaseUnlockResearchName);
+	linkRule(_hireScientistsUnlockResearch, _hireScientistsUnlockResearchName);
+	linkRule(_hireEngineersUnlockResearch, _hireEngineersUnlockResearchName);
+	linkRule(_manaUnlockResearch, _manaUnlockResearchName);
 
 	// check unique listOrder
 	{
@@ -3209,10 +3215,10 @@ void Mod::loadFile(const FileMap::FileRecord &filerec, ModScript &parsers)
 	reader.tryRead("alienFuel", _alienFuel);
 	reader.tryRead("fontName", _fontName);
 	reader.tryRead("psiUnlockResearch", _psiUnlockResearch);
-	reader.tryRead("fakeUnderwaterBaseUnlockResearch", _fakeUnderwaterBaseUnlockResearch);
-	reader.tryRead("newBaseUnlockResearch", _newBaseUnlockResearch);
-	reader.tryRead("hireScientistsUnlockResearch", _hireScientistsUnlockResearch);
-	reader.tryRead("hireEngineersUnlockResearch", _hireEngineersUnlockResearch);
+	reader.tryRead("fakeUnderwaterBaseUnlockResearch", _fakeUnderwaterBaseUnlockResearchName);
+	reader.tryRead("newBaseUnlockResearch", _newBaseUnlockResearchName);
+	reader.tryRead("hireScientistsUnlockResearch", _hireScientistsUnlockResearchName);
+	reader.tryRead("hireEngineersUnlockResearch", _hireEngineersUnlockResearchName);
 	loadBaseFunction("mod", _hireScientistsRequiresBaseFunc, reader["hireScientistsRequiresBaseFunc"]);
 	loadBaseFunction("mod", _hireEngineersRequiresBaseFunc, reader["hireEngineersRequiresBaseFunc"]);
 	reader.tryRead("destroyedFacility", _destroyedFacility);
@@ -3276,7 +3282,7 @@ void Mod::loadFile(const FileMap::FileRecord &filerec, ModScript &parsers)
 	{
 		nodeMana.tryRead("enabled", _manaEnabled);
 		nodeMana.tryRead("battleUI", _manaBattleUI);
-		nodeMana.tryRead("unlockResearch", _manaUnlockResearch);
+		nodeMana.tryRead("unlockResearch", _manaUnlockResearchName);
 		nodeMana.tryRead("trainingPrimary", _manaTrainingPrimary);
 		nodeMana.tryRead("trainingSecondary", _manaTrainingSecondary);
 

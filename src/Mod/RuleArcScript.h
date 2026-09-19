@@ -33,7 +33,8 @@ class RuleArcScript
 {
 private:
 	std::string _type;
-	std::vector<std::string> _sequentialArcs;
+	std::vector<std::string> _sequentialArcNames;
+	std::vector<const RuleResearch*> _sequentialArcs;
 	WeightedOptions _randomArcs;
 	int _firstMonth, _lastMonth, _executionOdds, _maxArcs, _minDifficulty, _maxDifficulty;
 	int _minScore, _maxScore;
@@ -62,7 +63,7 @@ public:
 	/// Gets the name of the script command.
 	const std::string &getType() const { return _type; }
 	/// Gets the sequential arcs list.
-	const std::vector<std::string> &getSequentialArcs() const { return _sequentialArcs; }
+	const std::vector<const RuleResearch*> &getSequentialArcs() const { return _sequentialArcs; }
 	/// Gets the random arcs weighted list.
 	const WeightedOptions &getRandomArcs() const { return _randomArcs; }
 	/// Gets the first month this command will run.
