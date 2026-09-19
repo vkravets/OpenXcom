@@ -2333,6 +2333,8 @@ void Mod::loadAll()
 	afterLoadHelper("missionScripts", this, _missionScripts, &RuleMissionScript::afterLoad);
 	afterLoadHelper("eventScripts", this, _eventScripts, &RuleEventScript::afterLoad);
 	afterLoadHelper("arcScripts", this, _arcScripts, &RuleArcScript::afterLoad);
+	afterLoadHelper("soldierTransformation", this, _soldierTransformation, &RuleSoldierTransformation::afterLoad);
+	afterLoadHelper("ufopaediaArticles", this, _ufopaediaArticles, &ArticleDefinition::afterLoad);
 
 	for (auto& a : _armors)
 	{
@@ -2390,11 +2392,29 @@ void Mod::loadAll()
 	}
 
 	// afterLoad() for Mod.h members
+	linkRule(_psiUnlockResearch, _psiUnlockResearchName);
 	linkRule(_fakeUnderwaterBaseUnlockResearch, _fakeUnderwaterBaseUnlockResearchName);
 	linkRule(_newBaseUnlockResearch, _newBaseUnlockResearchName);
 	linkRule(_hireScientistsUnlockResearch, _hireScientistsUnlockResearchName);
 	linkRule(_hireEngineersUnlockResearch, _hireEngineersUnlockResearchName);
 	linkRule(_manaUnlockResearch, _manaUnlockResearchName);
+
+	// refresh _psiRequirements for psiStrengthEval
+	for (const auto& facType : _facilitiesIndex)
+	{
+		RuleBaseFacility *rule = getBaseFacility(facType);
+		if (rule->getPsiLaboratories() > 0)
+		{
+			_psiRequirements = rule->getRequirements();
+			break;
+		}
+	}
+	// override the default (used when you want to separate screening and training)
+	if (_psiUnlockResearch)
+	{
+		_psiRequirements.clear();
+		_psiRequirements.push_back(_psiUnlockResearch);
+	}
 
 	// check unique listOrder
 	{
@@ -3214,7 +3234,7 @@ void Mod::loadFile(const FileMap::FileRecord &filerec, ModScript &parsers)
 	}
 	reader.tryRead("alienFuel", _alienFuel);
 	reader.tryRead("fontName", _fontName);
-	reader.tryRead("psiUnlockResearch", _psiUnlockResearch);
+	reader.tryRead("psiUnlockResearch", _psiUnlockResearchName);
 	reader.tryRead("fakeUnderwaterBaseUnlockResearch", _fakeUnderwaterBaseUnlockResearchName);
 	reader.tryRead("newBaseUnlockResearch", _newBaseUnlockResearchName);
 	reader.tryRead("hireScientistsUnlockResearch", _hireScientistsUnlockResearchName);
@@ -3546,23 +3566,6 @@ void Mod::loadFile(const FileMap::FileRecord &filerec, ModScript &parsers)
 		{
 			loadConstants(constants.useIndex());
 		}
-	}
-
-	// refresh _psiRequirements for psiStrengthEval
-	for (const auto& facType : _facilitiesIndex)
-	{
-		RuleBaseFacility *rule = getBaseFacility(facType);
-		if (rule->getPsiLaboratories() > 0)
-		{
-			_psiRequirements = rule->getRequirements();
-			break;
-		}
-	}
-	// override the default (used when you want to separate screening and training)
-	if (!_psiUnlockResearch.empty())
-	{
-		_psiRequirements.clear();
-		_psiRequirements.push_back(_psiUnlockResearch);
 	}
 
 	if (const auto& arrayReader = reader["aimAndArmorMultipliers"])
@@ -5082,7 +5085,7 @@ void Mod::sortLists()
 /**
  * Gets the research-requirements for Psi-Lab (it's a cache for psiStrengthEval)
  */
-const std::vector<std::string> &Mod::getPsiRequirements() const
+const std::vector<const RuleResearch*> &Mod::getPsiRequirements() const
 {
 	return _psiRequirements;
 }

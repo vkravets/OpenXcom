@@ -2025,9 +2025,9 @@ void SavedGame::getDependableCraft(std::vector<RuleCraft *> & dependables, const
 		if (craftItem->getBuyCost() != 0)
 		{
 			const auto& reqs = craftItem->getRequirements();
-			if (std::find(reqs.begin(), reqs.end(), research->getName()) != reqs.end())
+			if (std::find(reqs.begin(), reqs.end(), research) != reqs.end())
 			{
-				if (isResearched(craftItem->getRequirements()))
+				if (isResearched(reqs))
 				{
 					dependables.push_back(craftItem);
 				}
@@ -2048,9 +2048,9 @@ void SavedGame::getDependableFacilities(std::vector<RuleBaseFacility *> & depend
 	{
 		RuleBaseFacility *facilityItem = mod->getBaseFacility(facType);
 		const auto& reqs = facilityItem->getRequirements();
-		if (std::find(reqs.begin(), reqs.end(), research->getName()) != reqs.end())
+		if (std::find(reqs.begin(), reqs.end(), research) != reqs.end())
 		{
-			if (isResearched(facilityItem->getRequirements()))
+			if (isResearched(reqs))
 			{
 				dependables.push_back(facilityItem);
 			}

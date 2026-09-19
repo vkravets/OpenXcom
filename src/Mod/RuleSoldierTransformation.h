@@ -28,6 +28,7 @@ namespace OpenXcom
 {
 
 class Mod;
+class RuleResearch;
 
 /**
  * Ruleset data structure for the information to transform a soldier.
@@ -36,7 +37,9 @@ class RuleSoldierTransformation
 {
 private:
 	std::string _name;
-	std::vector<std::string > _requires, _requiredPreviousTransformations, _forbiddenPreviousTransformations;
+	std::vector<std::string> _requireNames;
+	std::vector<const RuleResearch*> _requires;
+	std::vector<std::string > _requiredPreviousTransformations, _forbiddenPreviousTransformations;
 	RuleBaseFacilityFunctions _requiresBaseFunc;
 	std::string _producedItem;
 	std::string _producedSoldierType, _producedSoldierArmor;
@@ -65,12 +68,14 @@ public:
 	RuleSoldierTransformation(const std::string &name, int listOrder);
 	/// Loads the project data from YAML
 	void load(const YAML::YamlNodeReader& reader, Mod* mod);
+	/// Cross link with other rules.
+	void afterLoad(const Mod* mod);
 	/// Gets the unique name id of the project
 	const std::string &getName() const;
 	/// Gets the list weight of the project
 	int getListOrder() const;
 	/// Gets the list of research this project requires
-	const std::vector<std::string > &getRequiredResearch() const;
+	const std::vector<const RuleResearch*> &getRequiredResearch() const { return _requires; }
 	/// Gets the list of required base functions for this project
 	RuleBaseFacilityFunctions getRequiredBaseFuncs() const { return _requiresBaseFunc; }
 	/// Gets the type of item produced by this project (the soldier stops existing completely and is fully replaced by the item)

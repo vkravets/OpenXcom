@@ -283,8 +283,10 @@ private:
 	bool _difficultyDemigod;
 	std::pair<std::string, int> _alienFuel;
 	RuleResearch* _finalResearch = nullptr;
-	std::string _fontName, _psiUnlockResearch;
+	std::string _fontName;
 
+	std::string _psiUnlockResearchName;
+	const RuleResearch* _psiUnlockResearch = nullptr;
 	std::string _fakeUnderwaterBaseUnlockResearchName;
 	const RuleResearch* _fakeUnderwaterBaseUnlockResearch = nullptr;
 	std::string _newBaseUnlockResearchName;
@@ -337,7 +339,7 @@ private:
 	ModData* _modCurrent;
 	const SDL_Color *_statePalette;
 
-	std::vector<std::string> _psiRequirements; // it's a cache for psiStrengthEval
+	std::vector<const RuleResearch*> _psiRequirements; // it's a cache for psiStrengthEval
 	std::vector<const Armor*> _armorsForSoldiersCache;
 	std::vector<const RuleItem*> _armorStorageItemsCache;
 	std::vector<const RuleItem*> _craftWeaponStorageItemsCache;
@@ -1086,7 +1088,7 @@ public:
 	/// Gets the list of StatStrings.
 	const std::vector<StatString *> &getStatStrings() const;
 	/// Gets the research-requirements for Psi-Lab (it's a cache for psiStrengthEval)
-	const std::vector<std::string> &getPsiRequirements() const;
+	const std::vector<const RuleResearch*> &getPsiRequirements() const;
 	/// Returns the sorted list of inventories.
 	const std::vector<std::string> &getInvsList() const;
 	/// Generates a new soldier.
