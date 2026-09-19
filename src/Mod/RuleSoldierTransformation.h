@@ -29,6 +29,7 @@ namespace OpenXcom
 
 class Mod;
 class RuleResearch;
+class RuleSoldierBonus;
 
 /**
  * Ruleset data structure for the information to transform a soldier.
@@ -61,6 +62,7 @@ private:
 	bool _resetRank;
 	bool _resetVoice;
 	std::string _soldierBonusType;
+	const RuleSoldierBonus* _soldierBonus = nullptr;
 	WeightedOptions _events;
 
 public:
@@ -164,8 +166,8 @@ public:
 	bool getResetRank() const;
 	/// Gets whether or not this project should reset the voice set of the destination soldier
 	bool getResetVoice() const { return _resetVoice; }
-	/// Gets the type of soldier bonus assigned by this project
-	const std::string &getSoldierBonusType() const;
+	/// Gets the soldier bonus assigned by this project
+	const RuleSoldierBonus* getSoldierBonus() const { return _soldierBonus; }
 
 	/// Gets geoscape event rule name to spawn after soldier transformation
 	std::string chooseEvent() const { return _events.choose(); }

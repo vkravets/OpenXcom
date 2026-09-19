@@ -114,6 +114,7 @@ void RuleSoldierTransformation::load(const YAML::YamlNodeReader& node, Mod* mod)
 void RuleSoldierTransformation::afterLoad(const Mod* mod)
 {
 	mod->linkRule(_requires, _requireNames);
+	mod->linkRule(_soldierBonus, _soldierBonusType);
 }
 
 /**
@@ -392,15 +393,6 @@ bool RuleSoldierTransformation::getReset() const
 bool RuleSoldierTransformation::getResetRank() const
 {
 	return _resetRank;
-}
-
-/**
- * Gets the type of soldier bonus assigned by this project
- * @return The soldier bonus type
- */
-const std::string &RuleSoldierTransformation::getSoldierBonusType() const
-{
-	return _soldierBonusType;
 }
 
 }
