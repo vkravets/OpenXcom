@@ -342,8 +342,6 @@ public:
 	/// Gets if a research still has undiscovered non-disabled "protected unlocks".
 	bool hasUndiscoveredProtectedUnlock(const RuleResearch * r) const;
 	/// Gets if a certain research has been completed.
-	bool isResearched(const std::string &research, bool considerDebugMode = true) const;
-	/// Gets if a certain research has been completed.
 	bool isResearched(const RuleResearch *research, bool considerDebugMode = true) const;
 	/// Gets if a certain list of research topics has been completed.
 	bool isResearched(const std::vector<std::string> &research, bool considerDebugMode = true) const;

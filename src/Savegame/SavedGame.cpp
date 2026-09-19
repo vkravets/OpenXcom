@@ -1794,7 +1794,7 @@ void SavedGame::getAvailableResearchProjects(std::vector<RuleResearch *> &projec
 		}
 
 		// Remove the already researched topics from the list *UNLESS* they can still give you something more
-		if (isResearched(research->getName(), false))
+		if (isResearched(research, false))
 		{
 			if (hasUndiscoveredGetOneFree(research, true))
 			{
@@ -2176,16 +2176,6 @@ bool SavedGame::hasUndiscoveredProtectedUnlock(const RuleResearch * r) const
  * @param considerDebugMode Should debug mode be considered or not.
  * @return Whether it's researched or not.
  */
-bool SavedGame::isResearched(const std::string &research, bool considerDebugMode) const
-{
-	//if (research.empty())
-	//	return true;
-	if (considerDebugMode && _debug)
-		return true;
-
-	return haveReserchVector(_discovered, research);
-}
-
 bool SavedGame::isResearched(const RuleResearch *research, bool considerDebugMode) const
 {
 	//if (research.empty())
