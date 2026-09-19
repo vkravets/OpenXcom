@@ -96,12 +96,6 @@ bool haveReserchVector(const std::vector<const RuleResearch*> &vec, const RuleRe
 	return find != vec.end() && *find == res;
 }
 
-bool haveReserchVector(const std::vector<const RuleResearch*> &vec,  const std::string &res)
-{
-	auto find = std::find_if(vec.begin(), vec.end(), [&](const RuleResearch* r){ return r->getName() == res; });
-	return find != vec.end();
-}
-
 }
 
 /**
@@ -2184,24 +2178,6 @@ bool SavedGame::isResearched(const RuleResearch *research, bool considerDebugMod
 		return true;
 
 	return haveReserchVector(_discovered, research);
-}
-
-bool SavedGame::isResearched(const std::vector<std::string> &research, bool considerDebugMode) const
-{
-	if (research.empty())
-		return true;
-	if (considerDebugMode && _debug)
-		return true;
-
-	for (const auto& res : research)
-	{
-		if (!haveReserchVector(_discovered, res))
-		{
-			return false;
-		}
-	}
-
-	return true;
 }
 
 /**

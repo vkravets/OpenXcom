@@ -344,8 +344,6 @@ public:
 	/// Gets if a certain research has been completed.
 	bool isResearched(const RuleResearch *research, bool considerDebugMode = true) const;
 	/// Gets if a certain list of research topics has been completed.
-	bool isResearched(const std::vector<std::string> &research, bool considerDebugMode = true) const;
-	/// Gets if a certain list of research topics has been completed.
 	bool isResearched(const std::vector<const RuleResearch *> &research, bool considerDebugMode = true, bool skipDisabled = false) const;
 	/// Gets if a certain item has been obtained.
 	bool isItemObtained(const std::string &itemType, const Mod* mod) const;
