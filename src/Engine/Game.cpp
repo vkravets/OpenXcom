@@ -20,6 +20,7 @@
 #include "../resource.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <sstream>
 #include <SDL_mixer.h>
 #include "State.h"
@@ -36,6 +37,7 @@
 #include "../Savegame/SavedGame.h"
 #include "../Savegame/SavedBattleGame.h"
 #include "Action.h"
+#include "InteractiveSurface.h"
 #include "Exception.h"
 #include "Options.h"
 #include "CrossPlatform.h"
@@ -61,6 +63,9 @@ Game::Game(const std::string &title) : _screen(0), _cursor(0), _lang(0), _save(0
 	_ctrl(false), _alt(false), _shift(false), _rmb(false), _mmb(false), _scrollStep(1),
 	_joystick(nullptr), _joystickAxisX(0), _joystickAxisY(0), _joystickHatState(SDL_HAT_CENTERED),
 	_mouseButtons(0), _joystickMouseButtons(0),
+	_joystickNavigation(false), _navigationAxisDown(false), _navigationWaitForNeutral(false), _keyboardButtonNavigation(false),
+	_joystickHatKeys(SDL_HAT_CENTERED), _navigationRepeatHat(SDL_HAT_CENTERED),
+	_joystickHatKeyState(nullptr), _navigationRepeatState(nullptr), _navigationRepeatSince(0), _navigationRepeating(false),
 	_joystickCursorFracX(0.0f), _joystickCursorFracY(0.0f), _joystickLastTime(0)
 {
 	Options::reload = false;
@@ -172,6 +177,179 @@ Game::~Game()
 	SDL_Quit();
 }
 
+void Game::resetButtonNavigationInput()
+{
+	_keyboardButtonNavigation = false;
+	_navigationRepeatHat = SDL_HAT_CENTERED;
+	_navigationRepeatState = nullptr;
+	_navigationRepeating = false;
+	_navigationWaitForNeutral = _joystickHatState != SDL_HAT_CENTERED;
+	const Uint8 masks[] = { SDL_HAT_UP, SDL_HAT_DOWN, SDL_HAT_LEFT, SDL_HAT_RIGHT };
+	const SDLKey keys[] = { SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT };
+	for (int i = 0; i < 4; ++i)
+	{
+		if (_joystickHatKeys & masks[i])
+		{
+			SDL_Event release = {};
+			release.type = SDL_USEREVENT;
+			release.user.code = CONTROLLER_HAT_RELEASE;
+			release.user.data1 = _joystickHatKeyState;
+			release.user.data2 = reinterpret_cast<void*>(static_cast<intptr_t>(keys[i]));
+			SDL_PushEvent(&release);
+		}
+	}
+	_joystickHatKeys = SDL_HAT_CENTERED;
+	_joystickHatKeyState = nullptr;
+}
+
+void Game::toggleButtonNavigation()
+{
+	resetButtonNavigationInput();
+	_joystickNavigation = !_joystickNavigation;
+	if (_joystickNavigation)
+	{
+		if (!_states.back()->getNavigationButton())
+			_states.back()->navigateButtons(0, 0);
+	}
+	else
+		_states.back()->clearButtonNavigation();
+}
+
+bool Game::handleButtonNavigation(SDL_Event &event)
+{
+	if (event.type == SDL_KEYUP)
+		return _navigationHeldKeys.erase(event.key.keysym.sym) != 0;
+	if (event.type != SDL_KEYDOWN)
+		return false;
+	const SDLKey key = event.key.keysym.sym;
+	const bool direction = key == SDLK_LEFT || key == SDLK_RIGHT || key == SDLK_UP || key == SDLK_DOWN;
+	// Activation and navigation cancellation require a fresh press, even if
+	// an editor enabled SDL repeat. Cancel can itself be remapped to Tab.
+	if (((key != SDLK_TAB && !direction) || key == Options::keyCancel) && _navigationHeldKeys.count(key))
+		return true;
+	State *state = _states.back();
+	InteractiveSurface *selected = state->getNavigationButton();
+	TextEdit *editor = dynamic_cast<TextEdit*>(selected);
+	const bool alternate = selected && !editor && (key == SDLK_RETURN || key == SDLK_KP_ENTER) &&
+		(event.key.keysym.mod & KMOD_CTRL);
+	if (dynamic_cast<VirtualKeyboardState*>(state) ||
+		(event.key.keysym.mod & (KMOD_ALT | KMOD_META)) || ((event.key.keysym.mod & KMOD_CTRL) && !alternate))
+		return false;
+	if (key == Options::keyCancel)
+	{
+		if (!_joystickNavigation && !selected && !state->isNavigationEditing())
+			return false;
+		resetButtonNavigationInput();
+		if (state->cancelNavigationControl())
+			_keyboardButtonNavigation = true;
+		else
+		{
+			_joystickNavigation = false;
+			state->clearButtonNavigation();
+		}
+		_navigationHeldKeys.insert(key);
+		return true;
+	}
+	if (!_mouseActive || !_cursor->getVisible())
+		return false;
+	if (key == SDLK_TAB && Options::oxceKeyboardButtonNavigation)
+	{
+		if (_states.back()->navigateButtons(0, 0, (event.key.keysym.mod & KMOD_SHIFT) != 0))
+		{
+			resetButtonNavigationInput();
+			_keyboardButtonNavigation = true;
+			_navigationHeldKeys.insert(key);
+			return true;
+		}
+	}
+	else if (editor && state->isNavigationEditing())
+	{
+		// Typing, Space and native editor shortcuts retain their original
+		// meaning; leaving the editor is handled above without sending Escape.
+		return false;
+	}
+	else if (direction && selected && (_keyboardButtonNavigation || _joystickNavigation))
+	{
+		_navigationHeldKeys.insert(key);
+		state->navigateButtons(key == SDLK_LEFT ? -1 : key == SDLK_RIGHT ? 1 : 0,
+			key == SDLK_UP ? -1 : key == SDLK_DOWN ? 1 : 0);
+		return true;
+	}
+	else if (_states.back()->getNavigationButton() &&
+		(_keyboardButtonNavigation || !_states.back()->getFocusedTextEdit()) &&
+		(key == SDLK_RETURN || key == SDLK_KP_ENTER || key == SDLK_SPACE))
+	{
+		_navigationHeldKeys.insert(key);
+		const Uint8 button = (event.key.keysym.mod & KMOD_CTRL) ? SDL_BUTTON_MIDDLE :
+			(event.key.keysym.mod & KMOD_SHIFT) ? SDL_BUTTON_RIGHT : SDL_BUTTON_LEFT;
+		const bool editing = state->isNavigationEditing();
+		state->activateNavigationButton(button);
+		if (_states.back() == state && editing != state->isNavigationEditing())
+		{
+			resetButtonNavigationInput();
+			_keyboardButtonNavigation = true;
+		}
+		return true;
+	}
+	else if (key == SDLK_ESCAPE || event.key.keysym.unicode >= 32)
+	{
+		_keyboardButtonNavigation = false;
+		if (!_joystickNavigation)
+			_states.back()->clearButtonNavigation();
+	}
+	return false;
+}
+
+void Game::navigateJoystickButtons(Uint8 hat)
+{
+	if (!_mouseActive || !_cursor->getVisible())
+		return;
+	if (hat != SDL_HAT_CENTERED)
+		_keyboardButtonNavigation = true;
+	State *state = _states.back();
+	State *owner = state->getNavigationState();
+	const Uint8 masks[] = {SDL_HAT_UP, SDL_HAT_DOWN, SDL_HAT_LEFT, SDL_HAT_RIGHT};
+	const int dx[] = {0, 0, -1, 1}, dy[] = {-1, 1, 0, 0};
+	for (int i = 0; i < 4; ++i)
+	{
+		if (hat & masks[i])
+		{
+			state->navigateButtons(dx[i], dy[i]);
+			// A control callback can open a screen or finish an interception.
+			// The rest of this diagonal belongs to the original control only.
+			if (getState() != state || state->getNavigationState() != owner)
+			{
+				resetButtonNavigationInput();
+				return;
+			}
+		}
+	}
+}
+
+void Game::repeatButtonNavigation(Uint8 liveHat)
+{
+	const Uint8 focus = SDL_APPINPUTFOCUS | SDL_APPACTIVE;
+	if (_navigationRepeatState && _navigationRepeatState != _states.back()->getNavigationState())
+		resetButtonNavigationInput();
+	if (!_joystickNavigation || !Options::oxceJoystickEnabled || _navigationWaitForNeutral ||
+		_navigationRepeatState != _states.back()->getNavigationState() || (SDL_GetAppState() & focus) != focus ||
+		dynamic_cast<VirtualKeyboardState*>(_states.back()) || liveHat != _navigationRepeatHat)
+	{
+		_navigationRepeatHat = SDL_HAT_CENTERED;
+		_navigationRepeatState = nullptr;
+		return;
+	}
+	if (liveHat == SDL_HAT_CENTERED)
+		return;
+	const Uint32 now = SDL_GetTicks();
+	if ((Uint32)(now - _navigationRepeatSince) >= (_navigationRepeating ? 100u : 400u))
+	{
+		_navigationRepeatSince = now;
+		_navigationRepeating = true;
+		navigateJoystickButtons(liveHat);
+	}
+}
+
 /**
  * Translates controller buttons before normal event dispatch, so mouse and
  * controller input share the cursor, UI handlers and held-button state.
@@ -184,11 +362,41 @@ bool Game::convertInputEvent(SDL_Event &event)
 	case SDL_ACTIVEEVENT:
 		if (!event.active.gain && (event.active.state & (SDL_APPINPUTFOCUS | SDL_APPACTIVE)))
 		{
+			resetButtonNavigationInput();
 			if (auto *keyboard = dynamic_cast<VirtualKeyboardState*>(_states.back()))
 				keyboard->armDpadRepeat(SDL_HAT_CENTERED);
 		}
 		break;
 	case SDL_USEREVENT:
+		if (event.user.code == NAVIGATION_KEY_RELEASE_EVENT)
+		{
+			_navigationHeldKeys.erase(static_cast<SDLKey>(reinterpret_cast<intptr_t>(event.user.data2)));
+			return false;
+		}
+		if (event.user.code == CONTROLLER_HAT_PRESS || event.user.code == CONTROLLER_HAT_RELEASE)
+		{
+			State *owner = static_cast<State*>(event.user.data1);
+			const bool pressed = event.user.code == CONTROLLER_HAT_PRESS;
+			if (std::find(_states.begin(), _states.end(), owner) == _states.end() ||
+				(pressed && (owner != _states.back() || _navigationWaitForNeutral ||
+				!Options::oxceJoystickEnabled ||
+				(SDL_GetAppState() & (SDL_APPINPUTFOCUS | SDL_APPACTIVE)) != (SDL_APPINPUTFOCUS | SDL_APPACTIVE) ||
+				(_joystickNavigation && !dynamic_cast<VirtualKeyboardState*>(owner)))))
+				return false;
+			SDL_Event key = {};
+			key.type = pressed ? SDL_KEYDOWN : SDL_KEYUP;
+			key.key.state = pressed ? SDL_PRESSED : SDL_RELEASED;
+			key.key.keysym.sym = static_cast<SDLKey>(reinterpret_cast<intptr_t>(event.user.data2));
+			if (owner == _states.back())
+			{
+				event = key;
+				return true;
+			}
+			// A release must reach the original camera even if a dialog opened.
+			Action action(&key, _screen->getXScale(), _screen->getYScale(), _screen->getCursorTopBlackBand(), _screen->getCursorLeftBlackBand());
+			owner->handle(&action);
+			return false;
+		}
 		if (event.user.code == CONTROLLER_DELETE_EVENT)
 		{
 			if (event.user.data1 == _states.back() &&
@@ -217,13 +425,28 @@ bool Game::convertInputEvent(SDL_Event &event)
 			return false;
 		}
 		break;
+	case SDL_KEYDOWN:
+	case SDL_KEYUP:
+		return !handleButtonNavigation(event);
 	case SDL_MOUSEMOTION:
+		if (event.motion.xrel != 0 || event.motion.yrel != 0)
+		{
+			_keyboardButtonNavigation = false;
+			if (!_joystickNavigation)
+				_states.back()->clearButtonNavigation();
+		}
 		_mouseButtons = event.motion.state;
 		event.motion.state |= _joystickMouseButtons;
 		break;
 	case SDL_MOUSEBUTTONDOWN:
 	case SDL_MOUSEBUTTONUP:
 	{
+		if (event.type == SDL_MOUSEBUTTONDOWN)
+		{
+			_keyboardButtonNavigation = false;
+			if (!_joystickNavigation)
+				_states.back()->clearButtonNavigation();
+		}
 		Uint8 mask = SDL_BUTTON(event.button.button);
 		if (event.type == SDL_MOUSEBUTTONDOWN)
 			_mouseButtons |= mask;
@@ -239,6 +462,19 @@ bool Game::convertInputEvent(SDL_Event &event)
 				_joystickAxisX = event.jaxis.value;
 			else if (event.jaxis.axis == 1)
 				_joystickAxisY = event.jaxis.value;
+			else if (event.jaxis.axis == Options::oxceJoystickAxisNavigation)
+			{
+				if (event.jaxis.value < 8000)
+					_navigationAxisDown = false;
+				else if (event.jaxis.value > 16000 && !_navigationAxisDown)
+				{
+					_navigationAxisDown = true;
+					const Uint8 focus = SDL_APPINPUTFOCUS | SDL_APPACTIVE;
+					if (Options::oxceJoystickEnabled && (SDL_GetAppState() & focus) == focus &&
+						!dynamic_cast<VirtualKeyboardState*>(_states.back()))
+						toggleButtonNavigation();
+				}
+			}
 		}
 		return false;
 	case SDL_JOYHATMOTION:
@@ -254,24 +490,47 @@ bool Game::convertInputEvent(SDL_Event &event)
 			};
 			Uint8 oldHat = _joystickHatState;
 			_joystickHatState = event.jhat.value;
+			if (_joystickHatState == SDL_HAT_CENTERED)
+				_navigationWaitForNeutral = false;
+			const bool keyboard = dynamic_cast<VirtualKeyboardState*>(_states.back()) != nullptr;
+			if (_joystickNavigation && !keyboard)
+			{
+				const Uint8 focus = SDL_APPINPUTFOCUS | SDL_APPACTIVE;
+				if (oldHat != _joystickHatState && !_navigationWaitForNeutral &&
+					Options::oxceJoystickEnabled && (SDL_GetAppState() & focus) == focus)
+				{
+					navigateJoystickButtons(_joystickHatState & ~oldHat);
+					if (_navigationWaitForNeutral)
+						return false;
+					_navigationRepeatHat = _joystickHatState;
+					_navigationRepeatState = _states.back()->getNavigationState();
+					_navigationRepeatSince = SDL_GetTicks();
+					_navigationRepeating = false;
+				}
+				return false;
+			}
 			for (const auto &hatKey : hatKeys)
 			{
-				bool wasDown = (oldHat & hatKey.mask) != 0;
-				bool isDown = (_joystickHatState & hatKey.mask) != 0;
+				bool wasDown = (_joystickHatKeys & hatKey.mask) != 0;
+				bool isDown = !_navigationWaitForNeutral && (_joystickHatState & hatKey.mask) != 0;
 				if (wasDown != isDown)
 				{
+					if (isDown && _joystickHatKeys == SDL_HAT_CENTERED)
+						_joystickHatKeyState = _states.back();
 					SDL_Event keyEvent = {};
-					keyEvent.type = isDown ? SDL_KEYDOWN : SDL_KEYUP;
-					keyEvent.key.state = isDown ? SDL_PRESSED : SDL_RELEASED;
-					keyEvent.key.keysym.sym = hatKey.key;
-					keyEvent.key.keysym.mod = KMOD_NONE;
+					keyEvent.type = SDL_USEREVENT;
+					keyEvent.user.code = isDown ? CONTROLLER_HAT_PRESS : CONTROLLER_HAT_RELEASE;
+					keyEvent.user.data1 = _joystickHatKeyState;
+					keyEvent.user.data2 = reinterpret_cast<void*>(static_cast<intptr_t>(hatKey.key));
 					SDL_PushEvent(&keyEvent);
+					if (isDown) _joystickHatKeys |= hatKey.mask;
+					else _joystickHatKeys &= ~hatKey.mask;
 				}
 			}
 			if (oldHat != _joystickHatState)
 			{
 				if (auto *keyboard = dynamic_cast<VirtualKeyboardState*>(_states.back()))
-					keyboard->armDpadRepeat(_joystickHatState);
+					keyboard->armDpadRepeat(_navigationWaitForNeutral ? SDL_HAT_CENTERED : _joystickHatState);
 			}
 		}
 		return false;
@@ -291,16 +550,42 @@ bool Game::convertInputEvent(SDL_Event &event)
 			if (_joystickButtonBindings.find(button) != _joystickButtonBindings.end())
 				return false;
 			bool keyboard = dynamic_cast<VirtualKeyboardState*>(_states.back()) != nullptr;
-			if (button == Options::oxceJoystickButtonKeyboard && Options::keyboardMode == KEYBOARD_VIRTUAL)
-				binding.command = VirtualKeyboardState::TOGGLE_EVENT;
+			InteractiveSurface *selected = !keyboard ? _states.back()->getNavigationButton() : nullptr;
+			const bool navigation = !keyboard && (_joystickNavigation || _keyboardButtonNavigation);
+			const bool alternate = navigation && selected && !dynamic_cast<TextEdit*>(selected);
+			if (!keyboard && button == Options::oxceJoystickButtonNavigation)
+				binding.command = CONTROLLER_NAVIGATION_TOGGLE;
+			else if (button == Options::oxceJoystickButtonKeyboard && Options::keyboardMode == KEYBOARD_VIRTUAL)
+			{
+				if (alternate)
+					binding.command = CONTROLLER_NAVIGATION_TERTIARY;
+				else
+				{
+					if (navigation && selected && !_states.back()->isNavigationEditing())
+						_states.back()->activateNavigationButton();
+					binding.command = VirtualKeyboardState::TOGGLE_EVENT;
+				}
+			}
 			else if (button == Options::oxceJoystickButtonLeftClick)
-				binding.mouseButton = SDL_BUTTON_LEFT;
+			{
+				if (navigation)
+					binding.command = CONTROLLER_NAVIGATION_NEXT;
+				else
+					binding.mouseButton = SDL_BUTTON_LEFT;
+			}
 			else if (button == Options::oxceJoystickButtonRightClick)
-				binding.mouseButton = SDL_BUTTON_RIGHT;
+			{
+				if (navigation && selected)
+					binding.command = CONTROLLER_NAVIGATION_SECONDARY;
+				else
+					binding.mouseButton = SDL_BUTTON_RIGHT;
+			}
 			else if (button == Options::oxceJoystickButtonOk)
 			{
 				if (keyboard)
 					binding.key = SDLK_RETURN;
+				else if (navigation)
+					binding.command = CONTROLLER_NAVIGATION_ACTIVATE;
 				else
 				{
 					int x, y;
@@ -322,6 +607,19 @@ bool Game::convertInputEvent(SDL_Event &event)
 			{
 				if (keyboard)
 					binding.key = SDLK_ESCAPE;
+				else if (_joystickNavigation || selected || _states.back()->isNavigationEditing())
+				{
+					resetButtonNavigationInput();
+					if (_states.back()->cancelNavigationControl())
+						_keyboardButtonNavigation = true;
+					else
+					{
+						_joystickNavigation = false;
+						_states.back()->clearButtonNavigation();
+					}
+					// Keep the empty binding latched until release: this press
+					// only exits navigation, without cancelling or right-clicking.
+				}
 				else if (_states.back()->getControllerButton(false))
 				{
 					binding.command = CONTROLLER_CANCEL_EVENT;
@@ -334,6 +632,8 @@ bool Game::convertInputEvent(SDL_Event &event)
 			{
 				if (keyboard)
 					binding.key = SDLK_BACKSPACE;
+				else if (alternate)
+					binding.command = CONTROLLER_NAVIGATION_SECONDARY;
 				else if ((Options::keyboardMode == KEYBOARD_ON || Options::keyboardMode == KEYBOARD_VIRTUAL) &&
 					(binding.editor = _states.back()->getFocusedTextEdit()) != nullptr)
 				{
@@ -344,7 +644,12 @@ bool Game::convertInputEvent(SDL_Event &event)
 					binding.key = SDLK_SPACE;
 			}
 			else if (button == Options::oxceJoystickButtonKeyboard)
-				binding.key = Options::keyOk;
+			{
+				if (alternate)
+					binding.command = CONTROLLER_NAVIGATION_TERTIARY;
+				else
+					binding.key = Options::keyOk;
+			}
 			else if (button >= 6 && button <= 9)
 				binding.key = keyboard ? SDLK_ESCAPE : Options::keyCancel;
 			_joystickButtonBindings[button] = binding;
@@ -360,6 +665,12 @@ bool Game::convertInputEvent(SDL_Event &event)
 
 		if (binding.mouseButton != 0)
 		{
+			if (pressed)
+			{
+				_keyboardButtonNavigation = false;
+				if (!_joystickNavigation)
+					_states.back()->clearButtonNavigation();
+			}
 			// Multiple controller buttons may hold the same logical mouse button.
 			_joystickMouseButtons = 0;
 			for (const auto &held : _joystickButtonBindings)
@@ -385,6 +696,34 @@ bool Game::convertInputEvent(SDL_Event &event)
 		}
 		if (binding.command >= 0)
 		{
+			if (binding.command == CONTROLLER_NAVIGATION_TOGGLE || binding.command == CONTROLLER_NAVIGATION_ACTIVATE ||
+				binding.command == CONTROLLER_NAVIGATION_SECONDARY || binding.command == CONTROLLER_NAVIGATION_TERTIARY ||
+				binding.command == CONTROLLER_NAVIGATION_NEXT)
+			{
+				const Uint8 focus = SDL_APPINPUTFOCUS | SDL_APPACTIVE;
+				if (pressed && Options::oxceJoystickEnabled && (SDL_GetAppState() & focus) == focus)
+				{
+					if (binding.command == CONTROLLER_NAVIGATION_TOGGLE)
+						toggleButtonNavigation();
+					else if (_mouseActive && _cursor->getVisible())
+					{
+						State *state = _states.back();
+						const bool editing = state->isNavigationEditing();
+						if (binding.command == CONTROLLER_NAVIGATION_NEXT)
+							_states.back()->navigateButtons(0, 0);
+						else
+							_states.back()->activateNavigationButton(binding.command == CONTROLLER_NAVIGATION_SECONDARY ? SDL_BUTTON_RIGHT :
+								binding.command == CONTROLLER_NAVIGATION_TERTIARY ? SDL_BUTTON_MIDDLE : SDL_BUTTON_LEFT);
+						if (_states.back() == state && (binding.command == CONTROLLER_NAVIGATION_NEXT ||
+							editing != state->isNavigationEditing()))
+						{
+							resetButtonNavigationInput();
+							_keyboardButtonNavigation = true;
+						}
+					}
+				}
+				return false;
+			}
 			if (pressed)
 			{
 				SDL_Event command = {};
@@ -442,10 +781,13 @@ void Game::run()
 		// Initialize active state
 		if (!_init)
 		{
+			resetButtonNavigationInput();
 			_init = true;
 			_states.back()->init();
 			if (auto *keyboard = dynamic_cast<VirtualKeyboardState*>(_states.back()))
 				keyboard->armDpadRepeat(SDL_HAT_CENTERED);
+			else if (_joystickNavigation && !_states.back()->getNavigationButton())
+				_states.back()->navigateButtons(0, 0);
 
 			// Unpress buttons
 			_states.back()->resetAll();
@@ -467,6 +809,24 @@ void Game::run()
 		// every call, so noisy joystick axes can keep the queue nonempty and
 		// prevent logic and cursor rendering from running.
 		SDL_PumpEvents();
+		// Video players can consume KEYUP outside the main loop. Recover a
+		// navigation key release in queue order, without replaying activation.
+		if (!_navigationHeldKeys.empty())
+		{
+			int keyCount = 0;
+			const Uint8 *keys = SDL_GetKeyState(&keyCount);
+			for (SDLKey key : _navigationHeldKeys)
+			{
+				if (key >= 0 && key < keyCount && keys[key] == SDL_RELEASED)
+				{
+					SDL_Event release = {};
+					release.type = SDL_USEREVENT;
+					release.user.code = NAVIGATION_KEY_RELEASE_EVENT;
+					release.user.data2 = reinterpret_cast<void*>(static_cast<intptr_t>(key));
+					SDL_PushEvent(&release);
+				}
+			}
+		}
 		if (_joystick)
 		{
 			// Loading, video playback and focus changes can discard release
@@ -645,7 +1005,8 @@ void Game::run()
 
 		// SDL's keyboard repeat does not apply to queued D-pad arrow events.
 		// Poll the device as well, so a missed release cannot keep navigation going.
-		if (auto *keyboard = dynamic_cast<VirtualKeyboardState*>(_states.back()))
+		auto *keyboard = dynamic_cast<VirtualKeyboardState*>(_states.back());
+		if (keyboard || _joystickNavigation || _navigationWaitForNeutral)
 		{
 			Uint8 hat = SDL_HAT_CENTERED;
 			if (_joystick && SDL_JoystickNumHats(_joystick) > 0)
@@ -663,7 +1024,24 @@ void Game::run()
 					SDL_PushEvent(&release);
 				}
 			}
-			keyboard->repeatDpad(_init && runningState != PAUSED ? hat : SDL_HAT_CENTERED);
+			const Uint8 liveHat = _init && runningState != PAUSED ? hat : SDL_HAT_CENTERED;
+			if (keyboard)
+				keyboard->repeatDpad(liveHat);
+			else
+				repeatButtonNavigation(liveHat);
+		}
+		if (_joystick && _navigationAxisDown && Options::oxceJoystickAxisNavigation >= 2 &&
+			Options::oxceJoystickAxisNavigation < SDL_JoystickNumAxes(_joystick) &&
+			SDL_JoystickGetAxis(_joystick, Options::oxceJoystickAxisNavigation) < 8000)
+		{
+			// Keep release recovery behind queued positive samples from the
+			// same press, otherwise a backlog could toggle the mode twice.
+			SDL_Event release = {};
+			release.type = SDL_JOYAXISMOTION;
+			release.jaxis.which = (Uint8)SDL_JoystickIndex(_joystick);
+			release.jaxis.axis = (Uint8)Options::oxceJoystickAxisNavigation;
+			release.jaxis.value = SDL_JoystickGetAxis(_joystick, Options::oxceJoystickAxisNavigation);
+			SDL_PushEvent(&release);
 		}
 
 		// Process rendering
@@ -751,6 +1129,7 @@ void Game::run()
 				{
 					(*i)->blit();
 				}
+				_states.back()->blitButtonNavigation();
 				_fpsCounter->blit(_screen->getSurface());
 				_cursor->blit(_screen->getSurface());
 				_screen->flip();
@@ -857,6 +1236,7 @@ void Game::setState(State *state)
  */
 void Game::pushState(State *state)
 {
+	resetButtonNavigationInput();
 	_states.push_back(state);
 	_init = false;
 }
@@ -869,6 +1249,7 @@ void Game::pushState(State *state)
  */
 void Game::popState()
 {
+	resetButtonNavigationInput();
 	_deleted.push_back(_states.back());
 	_states.pop_back();
 	_init = false;

@@ -178,9 +178,12 @@ OPT bool oxceInventoryUnloadFixedWeapons;
 OPT int oxceMaxEquipmentLayoutTemplates;
 
 // Joystick/gamepad support (OXCE hidden, configurable via options.cfg)
+OPT bool oxceKeyboardButtonNavigation;
 OPT bool oxceJoystickEnabled;
 OPT int oxceJoystickDeadZone;
 OPT int oxceJoystickCursorSpeed;
+OPT int oxceJoystickButtonNavigation;
+OPT int oxceJoystickAxisNavigation;
 OPT int oxceJoystickButtonOk;
 OPT int oxceJoystickButtonCancel;
 OPT int oxceJoystickButtonLeftClick;

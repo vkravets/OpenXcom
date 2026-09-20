@@ -55,6 +55,7 @@ private:
 	Uint8 _redColor, _yellowColor, _greenColor;
 	bool _highContrast;
 	Uint8 _cellColor, _selectorColor;
+	int _navigationX = 0, _navigationY = 0;
 	/// Updates the neighborFacility's build time. This is for internal use only (reCalcQueuedBuildings()).
 	void updateNeighborFacilityBuildTime(BaseFacility* facility, BaseFacility* neighbor);
 public:
@@ -96,6 +97,9 @@ public:
 	void mouseOver(Action *action, State *state) override;
 	/// Special handling for mouse hovering out.
 	void mouseOut(Action *action, State *state) override;
+	bool isNavigationTarget() override;
+	SDL_Rect getNavigationRect(bool active) const override;
+	NavigationResult handleNavigation(NavigationCommand command, State *state) override;
 
 	void setColor(Uint8 color) override;
 	void setSecondaryColor(Uint8 color) override;

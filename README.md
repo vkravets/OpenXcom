@@ -161,9 +161,10 @@ The left stick moves the shared mouse cursor. A clicks an interactive control
 under the cursor, including text fields, lists, sliders and their arrows. When
 no control is under the cursor, A activates the dialog's available OK shortcut;
 otherwise it acts as a left mouse click. B activates the dialog's available
-Cancel shortcut, or acts as a right mouse click. LB and RB always click at the
-cursor, including when a dialog has OK or Cancel shortcuts. Physical mouse and
-keyboard input continue to work alongside the controller.
+Cancel shortcut, or acts as a right mouse click. LB clicks at the cursor,
+including when a dialog has OK or Cancel shortcuts. RB toggles button navigation
+as described below. Physical mouse and keyboard input continue to work alongside
+the controller.
 
 Any button or D-pad direction on the enabled controller skips movie playback,
 including the startup intro and its closing pause or fade. Stick motion does
@@ -175,7 +176,7 @@ Edit these bindings under `options:` in `options.cfg` while the game is closed:
   oxceJoystickButtonOk: 0          # A: click a control, otherwise OK/left click
   oxceJoystickButtonCancel: 1      # B: Cancel, otherwise right click
   oxceJoystickButtonLeftClick: 4   # LB: left click at the cursor
-  oxceJoystickButtonRightClick: 5  # RB: right click at the cursor
+  oxceJoystickButtonRightClick: 5  # Shared with navigation; remap for right click
   oxceJoystickButtonKeyboard: 3    # Y: toggle the virtual keyboard
   oxceJoystickButtonDelete: 2      # X: delete in a focused text field or keyboard
 ```
@@ -199,10 +200,88 @@ Holding a D-pad direction in the virtual keyboard repeats navigation after
 400 ms, then every 100 ms. Releasing it, changing screens, or losing window
 focus stops the repeat. Confirm, cancel and character input are not repeated.
 
-If bindings share a button, virtual-keyboard toggle takes priority in virtual
-keyboard mode, followed by explicit mouse clicks, OK, Cancel, then Delete.
-Left click takes priority if both mouse bindings share a button. Assign distinct
-buttons to keep every action accessible.
+If bindings share a button, navigation toggle takes priority outside the
+virtual keyboard. The remaining priority is virtual-keyboard toggle in virtual
+keyboard mode, explicit mouse clicks, OK, Cancel, then Delete. Left click takes
+priority if both mouse bindings share a button. Assign distinct buttons to keep
+every action accessible.
+
+### Interface navigation
+
+Tab selects the next available control and Shift+Tab selects the previous one.
+Buttons, text fields, lists, dropdowns, sliders and clickable icons participate.
+A frame matching the current interface theme marks the selection; Enter or
+Space activates it. Once a control is selected, arrow keys also move the focus.
+Set `oxceKeyboardButtonNavigation` to `false` to restore
+Tab's existing `keyGeoToggleDetail` and `keyBattleNextUnit` shortcuts.
+
+```yaml
+  oxceKeyboardButtonNavigation: true
+  oxceJoystickButtonNavigation: 5  # RB: toggle controller button navigation
+  oxceJoystickAxisNavigation: -1   # Optional trigger axis; disabled by default
+```
+
+In controller navigation, the D-pad selects controls by their position and
+wraps at the edges. A activates a button or enters a composite control; while
+inside, the D-pad operates that control. LB moves to the next control, like Tab,
+including between interception windows. Holding a direction repeats after
+400 ms, then every 100 ms. RB turns the mode on or off. The mode stays active
+between screens and starts disabled when the game launches. Physical mouse and
+stick-controlled cursor input remain available.
+
+| Control | D-pad while inside | A / Enter |
+| --- | --- | --- |
+| Text field | Move the caret | Finish input using the field's normal action |
+| List | Up/down: records; left/right: row, arrows or adjustment column | Activate the selected row or arrow; increase in adjustment columns |
+| Dropdown | Preview an option | Confirm the option |
+| Slider | Adjust the value | Finish adjusting |
+| Base plan and inventory | Select a cell or inventory section | Use the selected cell, pick up or place an item |
+| Globe | Rotate the globe | Select the location at the centre |
+| Medikit / minimap | Select a body part / move the map camera | Use the selection |
+
+X and Y perform the selected control's right- and middle-click actions. For
+example, X opens a base facility's management screen or uses a list arrow's
+maximum/minimum action; Y opens information where the control supports it.
+In a list's staff-adjustment column, A increases and X decreases the amount.
+Keyboard users can use Shift+Enter and Ctrl+Enter for the additional actions.
+In text fields, X still deletes and Y opens the virtual keyboard. The existing
+button settings also remap these contextual actions: `oxceJoystickButtonLeftClick`
+for next control, `oxceJoystickButtonDelete` for the secondary action and
+`oxceJoystickButtonKeyboard` for the tertiary action.
+
+The battlefield map is excluded from focus navigation; use the shared cursor
+to move soldiers. Its HUD, action menus and inventory support focus navigation.
+The virtual keyboard keeps its own navigation and character input behavior;
+the navigation-toggle button uses its other binding there (RB is a right click
+with the defaults).
+
+Cancel (B or the configured `keyCancel`, Escape by default) first leaves the
+control being edited. For a dropdown this discards the unconfirmed option;
+leaving a text field keeps its text, and Cancel in inventory releases a held item.
+Tab/LB preserves a held item so that toolbar actions such as Unload remain usable.
+The next press exits navigation and removes the frame. Once navigation is off,
+Cancel performs its usual dialog action or right click. Each step requires a
+release and a fresh press. In the virtual keyboard, Cancel still closes the
+keyboard immediately.
+
+When a text field has focus, automatic controller selection leaves Space and
+Enter with that field. Use Tab or the D-pad to explicitly select a button before
+activating it with Enter or Space. Typing text or using the pointer returns
+keyboard input to the focused field.
+
+`oxceJoystickButtonNavigation` uses the same zero-based button indices and `-1`
+disable value as the other bindings. Navigation takes priority over a mouse
+binding on the same button outside the virtual keyboard. With the defaults,
+RB toggles navigation even though `oxceJoystickButtonRightClick` is also `5`;
+remap one binding or set navigation to `-1` to use that button for right clicks.
+
+For controllers that expose LT or RT as an axis, set
+`oxceJoystickAxisNavigation` to its zero-based SDL axis index, at least `2`
+because axes `0` and `1` control the cursor. Outside the virtual keyboard, a
+rise above `16000` toggles the mode once; the value must fall below `8000`
+before another press can toggle it again. Only the positive direction activates
+it. `-1` disables this optional binding, and indices outside the controller's
+axis range have no effect.
 
 ### Virtual keyboard layouts
 

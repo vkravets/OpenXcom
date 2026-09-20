@@ -27,6 +27,9 @@ namespace OpenXcom
 
 typedef void (State::* ActionHandler)(Action*);
 
+enum class NavigationCommand { Begin, Left, Right, Up, Down, Activate, Secondary, Tertiary, Cancel, End };
+enum class NavigationResult { Unhandled, Handled, Finished };
+
 /**
  * Surface that the user can interact with.
  * Specialized version of the standard Surface that
@@ -40,6 +43,7 @@ private:
 	static const int NUM_BUTTONS = 7;
 	static const SDLKey SDLK_ANY;
 	Uint8 _buttonsPressed;
+	bool _navigationEnabled;
 	std::string _tooltip;
 
 protected:
@@ -65,6 +69,19 @@ public:
 	virtual void handle(Action *action, State *state);
 	/// Checks whether this surface handles a mouse button at logical coordinates.
 	virtual bool isMouseTarget(double x, double y, Uint8 button);
+	/// Includes this control in keyboard/controller focus navigation.
+	void setNavigationEnabled(bool enabled) { _navigationEnabled = enabled; }
+	bool isNavigationEnabled() const { return _navigationEnabled; }
+	virtual bool isNavigationTarget();
+	/// Whether this control covers another navigation target at these coordinates.
+	virtual bool blocksNavigationAt(double x, double y);
+	/// Gets the whole control or its current internal selection, in logical coordinates.
+	virtual SDL_Rect getNavigationRect(bool active) const;
+	/// Handles interaction within a composite control; unhandled actions use normal clicks.
+	virtual NavigationResult handleNavigation(NavigationCommand command, State *state);
+	virtual Uint8 getNavigationMouseButton(NavigationCommand command) const;
+	/// Updates a composite control's hover selection without moving the hardware cursor.
+	void refreshNavigationHover(State *state);
 	/// Sets the focus of this surface.
 	virtual void setFocus(bool focus, bool modal = false);
 	/// Gets the focus of this surface.

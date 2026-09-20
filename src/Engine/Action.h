@@ -36,6 +36,7 @@ private:
 	double _scaleX, _scaleY;
 	int _topBlackBand, _leftBlackBand, _mouseX, _mouseY, _surfaceX, _surfaceY;
 	InteractiveSurface *_sender;
+	bool _navigationAction;
 public:
 	/// Creates an action with given event data.
 	Action(SDL_Event *ev, double scaleX, double scaleY, int topBlackBand, int leftBlackBand);
@@ -69,6 +70,9 @@ public:
 	InteractiveSurface *getSender() const;
 	/// Sets the sender of the action.
 	void setSender(InteractiveSurface *sender);
+	/// Marks a targeted focus action, which must not reposition the physical mouse.
+	void setNavigationAction(bool navigation) { _navigationAction = navigation; }
+	bool isNavigationAction() const { return _navigationAction; }
 	/// Gets the details of the action.
 	SDL_Event *getDetails() const;
 };

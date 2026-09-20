@@ -17,6 +17,7 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "AlienInventory.h"
+#include <algorithm>
 #include <cmath>
 #include "../Engine/Action.h"
 #include "../Engine/Font.h"
@@ -35,6 +36,63 @@
 
 namespace OpenXcom
 {
+
+std::vector<SDL_Rect> AlienInventory::getNavigationHands() const
+{
+	std::vector<SDL_Rect> hands;
+	for (const auto &entry : *_game->getMod()->getInventories())
+	{
+		const RuleInventory *slot = entry.second;
+		if (slot->getType() != INV_HAND)
+			continue;
+		const int offset = slot->isRightHand() ? -_dynamicOffset : slot->isLeftHand() ? _dynamicOffset : 0;
+		hands.push_back({(Sint16)(getX() + slot->getX() + _game->getMod()->getAlienInventoryOffsetX() + offset), (Sint16)(getY() + slot->getY()), RuleInventory::HAND_W * RuleInventory::SLOT_W, RuleInventory::HAND_H * RuleInventory::SLOT_H});
+	}
+	std::sort(hands.begin(), hands.end(), [](const SDL_Rect &a, const SDL_Rect &b) { return a.x < b.x; });
+	return hands;
+}
+
+bool AlienInventory::isNavigationTarget()
+{
+	return isNavigationEnabled() && _visible && !_hidden && _isFocused && _selUnit && !getNavigationHands().empty();
+}
+
+bool AlienInventory::blocksNavigationAt(double x, double y)
+{
+	if (!isNavigationEnabled() || !_visible || _hidden)
+		return false;
+	for (const SDL_Rect &hand : getNavigationHands())
+		if (x >= hand.x && y >= hand.y && x < hand.x + hand.w && y < hand.y + hand.h)
+			return true;
+	return false;
+}
+
+SDL_Rect AlienInventory::getNavigationRect(bool active) const
+{
+	const auto hands = getNavigationHands();
+	return !active || hands.empty() ? InteractiveSurface::getNavigationRect(false) : hands[std::min(_navigationHand, hands.size() - 1)];
+}
+
+NavigationResult AlienInventory::handleNavigation(NavigationCommand command, State *state)
+{
+	const auto hands = getNavigationHands();
+	if (hands.empty() || command == NavigationCommand::Cancel || command == NavigationCommand::End)
+		return NavigationResult::Finished;
+	_navigationHand = std::min(_navigationHand, hands.size() - 1);
+	if (command == NavigationCommand::Left || command == NavigationCommand::Up)
+		_navigationHand = (_navigationHand + hands.size() - 1) % hands.size();
+	else if (command == NavigationCommand::Right || command == NavigationCommand::Down)
+		_navigationHand = (_navigationHand + 1) % hands.size();
+	else if (command != NavigationCommand::Begin)
+		return NavigationResult::Unhandled;
+	refreshNavigationHover(state);
+	return NavigationResult::Handled;
+}
+
+Uint8 AlienInventory::getNavigationMouseButton(NavigationCommand command) const
+{
+	return command == NavigationCommand::Activate ? SDL_BUTTON_MIDDLE : InteractiveSurface::getNavigationMouseButton(command);
+}
 
 /**
  * Sets up an inventory with the specified size and position.

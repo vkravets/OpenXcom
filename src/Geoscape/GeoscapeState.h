@@ -62,6 +62,7 @@ private:
 	Text *_txtTraining;
 	std::list<State*> _popups;
 	std::list<DogfightState*> _dogfights, _dogfightsToBeStarted;
+	State *_navigationState = nullptr;
 	std::vector<Craft*> _activeCrafts;
 	size_t _minimizedDogfights;
 	int _slowdownCounter;
@@ -82,6 +83,9 @@ public:
 	~GeoscapeState();
 	/// Handle keypresses.
 	void handle(Action *action) override;
+	bool allowButtonNavigation() const override;
+	State *getNavigationState() override;
+	bool cycleNavigationState(bool backwards) override;
 	/// Updates the palette and timer.
 	void init() override;
 	/// Runs the timer.

@@ -69,6 +69,9 @@ public:
 	/// Updates the minimap animation.
 	void animate();
 	void stopScrolling(Action *action);
+	bool isNavigationTarget() override;
+	SDL_Rect getNavigationRect(bool active) const override;
+	NavigationResult handleNavigation(NavigationCommand command, State *state) override;
 };
 
 }

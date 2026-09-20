@@ -536,7 +536,8 @@ void SoldiersState::moveSoldierUp(Action *action, unsigned int row, bool max)
 		_base->getSoldiers()->at(row - 1) = s;
 		if (row != _lstSoldiers->getScroll())
 		{
-			SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(), action->getTopBlackBand() + action->getYMouse() - static_cast<Uint16>(8 * action->getYScale()));
+			if (!action->isNavigationAction())
+				SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(), action->getTopBlackBand() + action->getYMouse() - static_cast<Uint16>(8 * action->getYScale()));
 		}
 		else
 		{
@@ -544,6 +545,8 @@ void SoldiersState::moveSoldierUp(Action *action, unsigned int row, bool max)
 		}
 	}
 	initList(_lstSoldiers->getScroll());
+	if (action->isNavigationAction())
+		_lstSoldiers->setNavigationRow(max ? 0 : row - 1);
 }
 
 /**
@@ -589,7 +592,8 @@ void SoldiersState::moveSoldierDown(Action *action, unsigned int row, bool max)
 		_base->getSoldiers()->at(row + 1) = s;
 		if (row != _lstSoldiers->getVisibleRows() - 1 + _lstSoldiers->getScroll())
 		{
-			SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(), action->getTopBlackBand() + action->getYMouse() + static_cast<Uint16>(8 * action->getYScale()));
+			if (!action->isNavigationAction())
+				SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(), action->getTopBlackBand() + action->getYMouse() + static_cast<Uint16>(8 * action->getYScale()));
 		}
 		else
 		{
@@ -597,6 +601,8 @@ void SoldiersState::moveSoldierDown(Action *action, unsigned int row, bool max)
 		}
 	}
 	initList(_lstSoldiers->getScroll());
+	if (action->isNavigationAction())
+		_lstSoldiers->setNavigationRow(max ? _base->getSoldiers()->size() - 1 : row + 1);
 }
 
 /**

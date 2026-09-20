@@ -246,9 +246,11 @@ void SelectDestinationState::globeClick(Action *action)
  * Starts rotating the globe to the left.
  * @param action Pointer to an action.
  */
-void SelectDestinationState::btnRotateLeftPress(Action *)
+void SelectDestinationState::btnRotateLeftPress(Action *action)
 {
 	_globe->rotateLeft();
+	if (action && action->isNavigationAction())
+		_globe->rotate();
 }
 
 /**
@@ -264,9 +266,11 @@ void SelectDestinationState::btnRotateLeftRelease(Action *)
  * Starts rotating the globe to the right.
  * @param action Pointer to an action.
  */
-void SelectDestinationState::btnRotateRightPress(Action *)
+void SelectDestinationState::btnRotateRightPress(Action *action)
 {
 	_globe->rotateRight();
+	if (action && action->isNavigationAction())
+		_globe->rotate();
 }
 
 /**
@@ -282,9 +286,11 @@ void SelectDestinationState::btnRotateRightRelease(Action *)
  * Starts rotating the globe upwards.
  * @param action Pointer to an action.
  */
-void SelectDestinationState::btnRotateUpPress(Action *)
+void SelectDestinationState::btnRotateUpPress(Action *action)
 {
 	_globe->rotateUp();
+	if (action && action->isNavigationAction())
+		_globe->rotate();
 }
 
 /**
@@ -300,9 +306,11 @@ void SelectDestinationState::btnRotateUpRelease(Action *)
  * Starts rotating the globe downwards.
  * @param action Pointer to an action.
  */
-void SelectDestinationState::btnRotateDownPress(Action *)
+void SelectDestinationState::btnRotateDownPress(Action *action)
 {
 	_globe->rotateDown();
+	if (action && action->isNavigationAction())
+		_globe->rotate();
 }
 
 /**

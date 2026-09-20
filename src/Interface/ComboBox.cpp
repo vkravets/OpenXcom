@@ -56,7 +56,7 @@ static int getPopupWindowY(int buttonHeight, int buttonY, int popupHeight, bool 
  * @param x X position in pixels.
  * @param y Y position in pixels.
  */
-ComboBox::ComboBox(State *state, int width, int height, int x, int y, bool popupAboveButton) : InteractiveSurface(width, height, x, y), _change(0), _sel(0), _state(state), _lang(0), _toggled(false), _popupAboveButton(popupAboveButton)
+ComboBox::ComboBox(State *state, int width, int height, int x, int y, bool popupAboveButton) : InteractiveSurface(width, height, x, y), _change(0), _sel(0), _state(state), _lang(0), _toggled(false), _popupAboveButton(popupAboveButton), _navigationActive(false)
 {
 	_button = new TextButton(width, height, x, y);
 	_button->setComboBox(this);
@@ -370,11 +370,11 @@ void ComboBox::handle(Action *action, State *state)
 	}
 	if (_toggled)
 	{
+		_toggled = false;
 		if (_change)
 		{
 			(state->*_change)(action);
 		}
-		_toggled = false;
 	}
 }
 
@@ -383,6 +383,76 @@ bool ComboBox::isMouseTarget(double x, double y, Uint8 button)
 	return _visible && !_hidden &&
 		(_button->isMouseTarget(x, y, button) || _list->isMouseTarget(x, y, button) ||
 		 InteractiveSurface::isMouseTarget(x, y, button));
+}
+
+bool ComboBox::isNavigationTarget()
+{
+	return InteractiveSurface::isNavigationTarget() && _list->getTexts() != 0;
+}
+
+SDL_Rect ComboBox::getNavigationRect(bool active) const
+{
+	return active && isOpen() ? _list->getNavigationRect(true) : InteractiveSurface::getNavigationRect(false);
+}
+
+bool ComboBox::isOpen() const
+{
+	return _window->getVisible();
+}
+
+NavigationResult ComboBox::handleNavigation(NavigationCommand command, State *state)
+{
+	if (command == NavigationCommand::Cancel || command == NavigationCommand::End)
+	{
+		if (isOpen())
+			toggle(false, false);
+		return NavigationResult::Finished;
+	}
+	if (!isNavigationTarget() || !state || !state->isNavigationState())
+		return NavigationResult::Finished;
+	if (command == NavigationCommand::Begin)
+	{
+		if (!isOpen())
+			toggle(false, false);
+		_navigationActive = true;
+		// Preparing the preview must not update the committed selection.
+		_list->setNavigationRow(_sel < _list->getTexts() ? _sel : 0);
+		return _list->handleNavigation(NavigationCommand::Begin, state);
+	}
+	if (!isOpen())
+		return NavigationResult::Finished;
+	switch (command)
+	{
+	case NavigationCommand::Left:
+	case NavigationCommand::Up:
+		return _list->handleNavigation(NavigationCommand::Up, state);
+	case NavigationCommand::Right:
+	case NavigationCommand::Down:
+		return _list->handleNavigation(NavigationCommand::Down, state);
+	case NavigationCommand::Activate:
+	{
+		const size_t selected = _list->getSelectedRow();
+		if (selected >= _list->getTexts())
+			return NavigationResult::Handled;
+		setSelected(selected);
+		toggle(false, true);
+		_toggled = false;
+		if (_change)
+		{
+			SDL_Event event = {};
+			event.type = SDL_MOUSEBUTTONUP;
+			event.button.button = SDL_BUTTON_LEFT;
+			event.button.state = SDL_RELEASED;
+			Action action(&event, 1.0, 1.0, 0, 0);
+			action.setSender(this);
+			action.setNavigationAction(true);
+			(state->*_change)(&action);
+		}
+		// The change callback can replace the state; it must be the last call.
+		return NavigationResult::Finished;
+	}
+	default: return NavigationResult::Unhandled;
+	}
 }
 
 /**
@@ -409,6 +479,11 @@ void ComboBox::toggle(bool first, bool listClick)
 	_state->setModal(_window->getVisible() ? this : 0);
 	if (!first && !_window->getVisible())
 	{
+		if (_navigationActive)
+		{
+			_navigationActive = false;
+			_list->handleNavigation(NavigationCommand::End, _state);
+		}
 		_toggled = listClick;
 	}
 	if (_list->getVisible())

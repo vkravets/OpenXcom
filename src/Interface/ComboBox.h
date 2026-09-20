@@ -54,6 +54,7 @@ private:
 	Uint8 _color;
 	bool _toggled;
 	bool _popupAboveButton;
+	bool _navigationActive;
 
 	void drawArrow();
 	void setDropdown(int options);
@@ -99,6 +100,14 @@ public:
 	void handle(Action *action, State *state) override;
 	/// Includes the button and the visible dropdown list.
 	bool isMouseTarget(double x, double y, Uint8 button) override;
+	/// Checks whether the combo has selectable options.
+	bool isNavigationTarget() override;
+	/// Highlights the previewed dropdown row while interacting.
+	SDL_Rect getNavigationRect(bool active) const override;
+	/// Opens, previews, confirms or cancels dropdown selection.
+	NavigationResult handleNavigation(NavigationCommand command, State *state) override;
+	/// Gets whether the dropdown is open.
+	bool isOpen() const;
 	/// Toggles the combo box state.
 	void toggle(bool first, bool listClick);
 	/// Hooks an action handler to when the slider changes.

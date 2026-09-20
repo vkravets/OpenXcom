@@ -496,6 +496,51 @@ Polygon* Globe::getPolygonFromLonLat(double lon, double lat) const
 	return NULL;
 }
 
+bool Globe::isNavigationTarget()
+{
+	return isNavigationEnabled() && _visible && !_hidden && _isFocused;
+}
+
+SDL_Rect Globe::getNavigationRect(bool active) const
+{
+	if (!active)
+		return InteractiveSurface::getNavigationRect(false);
+	return { static_cast<Sint16>(_cenX - 4), static_cast<Sint16>(_cenY - 4), 8, 8 };
+}
+
+bool Globe::blocksNavigationAt(double x, double y)
+{
+	if (!isNavigationEnabled() || !_visible || _hidden)
+		return false;
+	double lon, lat;
+	cartToPolar(static_cast<Sint16>(x), static_cast<Sint16>(y), &lon, &lat);
+	return lon == lon && lat == lat;
+}
+
+NavigationResult Globe::handleNavigation(NavigationCommand command, State *state)
+{
+	if (command == NavigationCommand::Cancel || command == NavigationCommand::End)
+	{
+		rotateStop();
+		return NavigationResult::Finished;
+	}
+	if (command == NavigationCommand::Begin)
+		rotateStop();
+	else if (command == NavigationCommand::Left) rotateLeft();
+	else if (command == NavigationCommand::Right) rotateRight();
+	else if (command == NavigationCommand::Up) rotateUp();
+	else if (command == NavigationCommand::Down) rotateDown();
+	else
+		return NavigationResult::Unhandled;
+	if (command != NavigationCommand::Begin)
+	{
+		rotate();
+		rotateStop();
+	}
+	refreshNavigationHover(state);
+	return NavigationResult::Handled;
+}
+
 /**
  * Sets a leftwards rotation speed and starts the timer.
  */
@@ -1905,7 +1950,7 @@ void Globe::mousePress(Action *action, State *state)
 	double lon, lat;
 	cartToPolar((Sint16)floor(action->getAbsoluteXMouse()), (Sint16)floor(action->getAbsoluteYMouse()), &lon, &lat);
 
-	if (action->getDetails()->button.button == Options::geoDragScrollButton)
+	if (!action->isNavigationAction() && action->getDetails()->button.button == Options::geoDragScrollButton)
 	{
 		_isMouseScrolling = true;
 		_isMouseScrolled = false;
@@ -1932,7 +1977,7 @@ void Globe::mouseRelease(Action *action, State *state)
 {
 	double lon, lat;
 	cartToPolar((Sint16)floor(action->getAbsoluteXMouse()), (Sint16)floor(action->getAbsoluteYMouse()), &lon, &lat);
-	if (action->getDetails()->button.button == Options::geoDragScrollButton)
+	if (!action->isNavigationAction() && action->getDetails()->button.button == Options::geoDragScrollButton)
 	{
 		stopScrolling(action);
 	}

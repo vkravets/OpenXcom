@@ -39,6 +39,7 @@ private:
 	std::vector<Base*> *_bases;
 	SurfaceSet *_texture;
 	size_t _base, _hoverBase;
+	size_t _navigationBase = 0;
 	Uint8 _red, _green, _blue;
 public:
 	static const size_t MAX_BASES = 8;
@@ -58,6 +59,9 @@ public:
 	void draw() override;
 	/// Special handling for mouse hovers.
 	void mouseOver(Action *action, State *state) override;
+	bool isNavigationTarget() override;
+	SDL_Rect getNavigationRect(bool active) const override;
+	NavigationResult handleNavigation(NavigationCommand command, State *state) override;
 	void setColor(Uint8 color) override;
 	void setSecondaryColor(Uint8 color) override;
 	void setBorderColor(Uint8 color) override;

@@ -100,6 +100,59 @@ bool TextEdit::isControllerEditable() const
 	return _visible && !_hidden && _isFocused;
 }
 
+bool TextEdit::isNavigationTarget()
+{
+	return isNavigationEnabled() && _visible && !_hidden;
+}
+
+NavigationResult TextEdit::handleNavigation(NavigationCommand command, State *state)
+{
+	if (command == NavigationCommand::Cancel || command == NavigationCommand::End)
+	{
+		// Escape in keyboardPress clears the value; leaving a field must not.
+		setFocus(false, _modal);
+		return NavigationResult::Finished;
+	}
+	if (!isNavigationTarget() || !state || !state->isNavigationState())
+		return NavigationResult::Finished;
+	if (command == NavigationCommand::Begin)
+	{
+		if (TextEdit *previous = state->getFocusedTextEdit())
+		{
+			if (previous != this)
+				previous->handleNavigation(NavigationCommand::End, state);
+		}
+		setFocus(true, _modal);
+		return NavigationResult::Handled;
+	}
+	if (!_isFocused)
+		return NavigationResult::Finished;
+
+	SDLKey key;
+	switch (command)
+	{
+	case NavigationCommand::Left: key = SDLK_LEFT; break;
+	case NavigationCommand::Right: key = SDLK_RIGHT; break;
+	case NavigationCommand::Up: key = SDLK_UP; break;
+	case NavigationCommand::Down: key = SDLK_DOWN; break;
+	case NavigationCommand::Activate:
+		key = SDLK_RETURN;
+		setFocus(false, _modal);
+		break;
+	default: return NavigationResult::Unhandled;
+	}
+	SDL_Event event = {};
+	event.type = SDL_KEYDOWN;
+	event.key.state = SDL_PRESSED;
+	event.key.keysym.sym = key;
+	Action action(&event, 1.0, 1.0, 0, 0);
+	action.setSender(this);
+	action.setNavigationAction(true);
+	keyboardPress(&action, state);
+	// The normal change/enter callback may have replaced the screen or field.
+	return command == NavigationCommand::Activate ? NavigationResult::Finished : NavigationResult::Handled;
+}
+
 /**
  * Controls the blinking animation when
  * the text edit is focused.
@@ -576,7 +629,7 @@ void TextEdit::keyboardPress(Action *action, State *state)
 			if (!_value.empty() || _enter != 0)
 			{
 				enterPressed = true;
-				setFocus(false);
+				setFocus(false, _modal);
 			}
 			break;
 		default:
@@ -593,10 +646,14 @@ void TextEdit::keyboardPress(Action *action, State *state)
 	if (_change)
 	{
 		(state->*_change)(action);
+		if (action->isNavigationAction() && (!state->isNavigationState() || !state->containsSurface(this)))
+			return;
 	}
 	if (_enter && enterPressed)
 	{
 		(state->*_enter)(action);
+		if (action->isNavigationAction() && (!state->isNavigationState() || !state->containsSurface(this)))
+			return;
 	}
 
 	InteractiveSurface::keyboardPress(action, state);

@@ -57,6 +57,8 @@ private:
 	Timer *_animTimer;
 	int _depth, _groundSlotsX, _groundSlotsY;
 	int _xMax;
+	size_t _navigationCell = 0;
+	std::vector<SDL_Rect> getNavigationCells() const;
 	RuleInventory *_inventorySlotRightHand = nullptr;
 	RuleInventory *_inventorySlotLeftHand = nullptr;
 	RuleInventory *_inventorySlotBackPack = nullptr;
@@ -72,6 +74,10 @@ private:
 	/// Play a sound.
 	void playSound(int sound);
 public:
+	bool isNavigationTarget() override;
+	bool blocksNavigationAt(double x, double y) override;
+	SDL_Rect getNavigationRect(bool active) const override;
+	NavigationResult handleNavigation(NavigationCommand command, State *state) override;
 	/// Creates a new inventory view at the specified position and size.
 	Inventory(Game *game, int width, int height, int x = 0, int y = 0, bool base = false);
 	/// Cleans up the inventory.

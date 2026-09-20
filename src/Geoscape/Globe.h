@@ -104,6 +104,10 @@ private:
 	/// Set up the radius of earth and stuff.
 	void setupRadii(int width, int height);
 public:
+	bool isNavigationTarget() override;
+	SDL_Rect getNavigationRect(bool active) const override;
+	NavigationResult handleNavigation(NavigationCommand command, State *state) override;
+	bool blocksNavigationAt(double x, double y) override;
 	static Uint8 OCEAN_COLOR;
 	static bool OCEAN_SHADING;
 	static Uint8 COUNTRY_LABEL_COLOR;

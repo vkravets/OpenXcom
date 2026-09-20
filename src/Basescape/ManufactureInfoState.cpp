@@ -99,9 +99,11 @@ void ManufactureInfoState::buildUi()
 	_txtTodo = new Text(40, 16, 280, 88);
 
 	_surfaceEngineers = new InteractiveSurface(160, 150, 0, 25);
+	_surfaceEngineers->setNavigationEnabled(false);
 	_surfaceEngineers->onMouseClick((ActionHandler)&ManufactureInfoState::handleWheelEngineer, 0);
 
 	_surfaceUnits = new InteractiveSurface(160, 150, 160, 25);
+	_surfaceUnits->setNavigationEnabled(false);
 	_surfaceUnits->onMouseClick((ActionHandler)&ManufactureInfoState::handleWheelUnit, 0);
 
 	touchComponentsCreate(_txtTitle, false, -1, +22, true);

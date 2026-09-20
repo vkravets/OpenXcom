@@ -277,9 +277,11 @@ void BuildNewBaseState::globeClick(Action *action)
  * Starts rotating the globe to the left.
  * @param action Pointer to an action.
  */
-void BuildNewBaseState::btnRotateLeftPress(Action *)
+void BuildNewBaseState::btnRotateLeftPress(Action *action)
 {
 	_globe->rotateLeft();
+	if (action && action->isNavigationAction())
+		_globe->rotate();
 }
 
 /**
@@ -295,9 +297,11 @@ void BuildNewBaseState::btnRotateLeftRelease(Action *)
  * Starts rotating the globe to the right.
  * @param action Pointer to an action.
  */
-void BuildNewBaseState::btnRotateRightPress(Action *)
+void BuildNewBaseState::btnRotateRightPress(Action *action)
 {
 	_globe->rotateRight();
+	if (action && action->isNavigationAction())
+		_globe->rotate();
 }
 
 /**
@@ -313,9 +317,11 @@ void BuildNewBaseState::btnRotateRightRelease(Action *)
  * Starts rotating the globe upwards.
  * @param action Pointer to an action.
  */
-void BuildNewBaseState::btnRotateUpPress(Action *)
+void BuildNewBaseState::btnRotateUpPress(Action *action)
 {
 	_globe->rotateUp();
+	if (action && action->isNavigationAction())
+		_globe->rotate();
 }
 
 /**
@@ -331,9 +337,11 @@ void BuildNewBaseState::btnRotateUpRelease(Action *)
  * Starts rotating the globe downwards.
  * @param action Pointer to an action.
  */
-void BuildNewBaseState::btnRotateDownPress(Action *)
+void BuildNewBaseState::btnRotateDownPress(Action *action)
 {
 	_globe->rotateDown();
+	if (action && action->isNavigationAction())
+		_globe->rotate();
 }
 
 /**

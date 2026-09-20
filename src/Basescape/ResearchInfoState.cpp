@@ -90,6 +90,7 @@ void ResearchInfoState::buildUi()
 	_btnLess = new ArrowButton(ARROW_BIG_DOWN, 13, 14, 195, 120);
 
 	_surfaceScientists = new InteractiveSurface(230, 140, 45, 30);
+	_surfaceScientists->setNavigationEnabled(false);
 	_surfaceScientists->onMouseClick((ActionHandler)&ResearchInfoState::handleWheel, 0);
 
 	touchComponentsCreate(_txtTitle, false, -45, +30, true);

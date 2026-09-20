@@ -453,9 +453,12 @@ void createOptionsOXCE()
 	_info.push_back(OptionInfo(OPTION_OXCE, "oxceMaxEquipmentLayoutTemplates", &oxceMaxEquipmentLayoutTemplates, 20, "", "HIDDEN"));
 
 	// Joystick/gamepad support
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceKeyboardButtonNavigation", &oxceKeyboardButtonNavigation, true, "", "HIDDEN"));
 	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickEnabled", &oxceJoystickEnabled, true, "", "HIDDEN"));
 	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickDeadZone", &oxceJoystickDeadZone, 8000, "", "HIDDEN"));
 	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickCursorSpeed", &oxceJoystickCursorSpeed, 400, "", "HIDDEN"));
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickButtonNavigation", &oxceJoystickButtonNavigation, 5, "", "HIDDEN"));
+	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickAxisNavigation", &oxceJoystickAxisNavigation, -1, "", "HIDDEN"));
 	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickButtonOk", &oxceJoystickButtonOk, 0, "", "HIDDEN"));
 	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickButtonCancel", &oxceJoystickButtonCancel, 1, "", "HIDDEN"));
 	_info.push_back(OptionInfo(OPTION_OXCE, "oxceJoystickButtonLeftClick", &oxceJoystickButtonLeftClick, 4, "", "HIDDEN"));

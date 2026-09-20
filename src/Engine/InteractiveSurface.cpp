@@ -20,6 +20,7 @@
 #include "Action.h"
 #include "Game.h"
 #include "State.h"
+#include "Screen.h"
 
 namespace OpenXcom
 {
@@ -33,7 +34,7 @@ const SDLKey InteractiveSurface::SDLK_ANY = (SDLKey)-1; // using an unused keyco
  * @param x X position in pixels.
  * @param y Y position in pixels.
  */
-InteractiveSurface::InteractiveSurface(int width, int height, int x, int y) : Surface(width, height, x, y), _buttonsPressed(0), _in(0), _over(0), _out(0), _isHovered(false), _isFocused(true), _listButton(false), _tftdMode(false)
+InteractiveSurface::InteractiveSurface(int width, int height, int x, int y) : Surface(width, height, x, y), _buttonsPressed(0), _navigationEnabled(true), _in(0), _over(0), _out(0), _isHovered(false), _isFocused(true), _listButton(false), _tftdMode(false)
 {
 }
 
@@ -64,6 +65,50 @@ bool InteractiveSurface::isMouseTarget(double x, double y, Uint8 button)
 		x >= getX() && x < getX() + getWidth() &&
 		y >= getY() && y < getY() + getHeight() &&
 		isButtonHandled(button);
+}
+
+bool InteractiveSurface::isNavigationTarget()
+{
+	const double x = getX() + getWidth() / 2.0, y = getY() + getHeight() / 2.0;
+	return _navigationEnabled && _isFocused && _visible && !_hidden &&
+		(isMouseTarget(x, y, SDL_BUTTON_LEFT) || isMouseTarget(x, y, SDL_BUTTON_RIGHT) ||
+		 isMouseTarget(x, y, SDL_BUTTON_MIDDLE));
+}
+
+bool InteractiveSurface::blocksNavigationAt(double x, double y)
+{
+	return _navigationEnabled && (isMouseTarget(x, y, SDL_BUTTON_LEFT) || isMouseTarget(x, y, SDL_BUTTON_RIGHT) ||
+		isMouseTarget(x, y, SDL_BUTTON_MIDDLE));
+}
+
+SDL_Rect InteractiveSurface::getNavigationRect(bool) const
+{
+	return SDL_Rect{static_cast<Sint16>(getX()), static_cast<Sint16>(getY()),
+		static_cast<Uint16>(getWidth()), static_cast<Uint16>(getHeight())};
+}
+
+NavigationResult InteractiveSurface::handleNavigation(NavigationCommand, State *)
+{
+	return NavigationResult::Unhandled;
+}
+
+Uint8 InteractiveSurface::getNavigationMouseButton(NavigationCommand command) const
+{
+	return command == NavigationCommand::Secondary ? SDL_BUTTON_RIGHT :
+		command == NavigationCommand::Tertiary ? SDL_BUTTON_MIDDLE : SDL_BUTTON_LEFT;
+}
+
+void InteractiveSurface::refreshNavigationHover(State *state)
+{
+	const SDL_Rect rect = getNavigationRect(true);
+	Screen *screen = State::getGame()->getScreen();
+	SDL_Event event = {};
+	event.type = SDL_MOUSEMOTION;
+	event.motion.x = static_cast<Uint16>((rect.x + rect.w / 2.0) * screen->getXScale() + screen->getCursorLeftBlackBand());
+	event.motion.y = static_cast<Uint16>((rect.y + rect.h / 2.0) * screen->getYScale() + screen->getCursorTopBlackBand());
+	Action action(&event, screen->getXScale(), screen->getYScale(), screen->getCursorTopBlackBand(), screen->getCursorLeftBlackBand());
+	action.setNavigationAction(true);
+	handle(&action, state);
 }
 
 bool InteractiveSurface::isButtonPressed(Uint8 button) const
@@ -117,6 +162,12 @@ void InteractiveSurface::handle(Action *action, State *state)
 {
 	if (!_visible || _hidden)
 		return;
+	const bool navigation = action->isNavigationAction();
+	const bool direct = navigation && state->containsSurface(this);
+	const auto stillAvailable = [this, state, navigation, direct]()
+	{
+		return !navigation || (state->isNavigationState() && (!direct || state->containsSurface(this)));
+	};
 
 	action->setSender(this);
 
@@ -138,6 +189,7 @@ void InteractiveSurface::handle(Action *action, State *state)
 			{
 				_isHovered = true;
 				mouseIn(action, state);
+				if (!stillAvailable()) return;
 			}
 			if (_listButton && action->getDetails()->type == SDL_MOUSEMOTION)
 			{
@@ -148,10 +200,12 @@ void InteractiveSurface::handle(Action *action, State *state)
 					{
 						action->getDetails()->button.button = i;
 						mousePress(action, state);
+						if (!stillAvailable()) return;
 					}
 				}
 			}
 			mouseOver(action, state);
+			if (!stillAvailable()) return;
 		}
 		else
 		{
@@ -159,6 +213,7 @@ void InteractiveSurface::handle(Action *action, State *state)
 			{
 				_isHovered = false;
 				mouseOut(action, state);
+				if (!stillAvailable()) return;
 				if (_listButton && action->getDetails()->type == SDL_MOUSEMOTION)
 				{
 					for (Uint8 i = 1; i <= NUM_BUTTONS; ++i)
@@ -169,6 +224,7 @@ void InteractiveSurface::handle(Action *action, State *state)
 						}
 						action->getDetails()->button.button = i;
 						mouseRelease(action, state);
+						if (!stillAvailable()) return;
 					}
 				}
 			}
@@ -181,6 +237,7 @@ void InteractiveSurface::handle(Action *action, State *state)
 		{
 			setButtonPressed(action->getDetails()->button.button, true);
 			mousePress(action, state);
+			if (navigation) return;
 		}
 	}
 	else if (action->getDetails()->type == SDL_MOUSEBUTTONUP)
@@ -189,9 +246,11 @@ void InteractiveSurface::handle(Action *action, State *state)
 		{
 			setButtonPressed(action->getDetails()->button.button, false);
 			mouseRelease(action, state);
+			if (!stillAvailable()) return;
 			if (_isHovered)
 			{
 				mouseClick(action, state);
+				if (navigation) return;
 			}
 		}
 	}

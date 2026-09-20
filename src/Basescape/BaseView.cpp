@@ -35,6 +35,40 @@
 namespace OpenXcom
 {
 
+bool BaseView::isNavigationTarget()
+{
+	return _base && InteractiveSurface::isNavigationTarget();
+}
+
+SDL_Rect BaseView::getNavigationRect(bool active) const
+{
+	if (!active)
+		return InteractiveSurface::getNavigationRect(false);
+	return { static_cast<Sint16>(getX() + _navigationX * GRID_SIZE),
+		static_cast<Sint16>(getY() + _navigationY * GRID_SIZE), GRID_SIZE, GRID_SIZE };
+}
+
+NavigationResult BaseView::handleNavigation(NavigationCommand command, State *state)
+{
+	if (command == NavigationCommand::Cancel || command == NavigationCommand::End)
+		return NavigationResult::Finished;
+	if (command == NavigationCommand::Begin)
+	{
+		_navigationX = _gridX;
+		_navigationY = _gridY;
+	}
+	else if (command == NavigationCommand::Left) --_navigationX;
+	else if (command == NavigationCommand::Right) ++_navigationX;
+	else if (command == NavigationCommand::Up) --_navigationY;
+	else if (command == NavigationCommand::Down) ++_navigationY;
+	else
+		return NavigationResult::Unhandled;
+	_navigationX = std::max(0, std::min(_navigationX, BASE_SIZE - std::max(1, _selSizeX)));
+	_navigationY = std::max(0, std::min(_navigationY, BASE_SIZE - std::max(1, _selSizeY)));
+	refreshNavigationHover(state);
+	return NavigationResult::Handled;
+}
+
 /**
  * Sets up a base view with the specified size and position.
  * @param width Width in pixels.

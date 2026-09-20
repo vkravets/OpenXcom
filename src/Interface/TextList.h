@@ -60,11 +60,19 @@ private:
 	int _arrowsLeftEdge, _arrowsRightEdge;
 	int _noScrollLeftEdge, _noScrollRightEdge;
 	ComboBox *_comboBox;
+	bool _navigationActive;
+	int _navigationPart;
 
 	/// Updates the arrow buttons.
 	void updateArrows();
 	/// Updates the visible rows.
 	void updateVisible();
+	/// Gets the available row body, arrow and allocation-column targets.
+	std::vector<int> getNavigationParts() const;
+	/// Refreshes the selected-row highlight without moving the mouse.
+	void updateNavigationSelector();
+	/// Positions row arrows immediately after scrolling or rebuilding the list.
+	void updateNavigationArrows();
 public:
 	/// Creates a text list with the specified size and position.
 	TextList(int width, int height, int x = 0, int y = 0);
@@ -186,6 +194,16 @@ public:
 	void handle(Action *action, State *state) override;
 	/// Includes the list's visible row arrows and external scrolling controls.
 	bool isMouseTarget(double x, double y, Uint8 button) override;
+	/// Includes selectable lists with actions, and lists that can be scrolled.
+	bool isNavigationTarget() override;
+	/// Gets the whole list or its selected row target in logical coordinates.
+	SDL_Rect getNavigationRect(bool active) const override;
+	/// Navigates logical rows and their embedded actions.
+	NavigationResult handleNavigation(NavigationCommand command, State *state) override;
+	/// Maps the allocation column's primary/secondary actions to wheel input.
+	Uint8 getNavigationMouseButton(NavigationCommand command) const override;
+	/// Selects a logical row, retaining the active target and showing the row.
+	void setNavigationRow(size_t row, State *state = nullptr);
 	bool isMouseCursorOverMe(State* state) const;
 	/// Special handling for mouse presses.
 	void mousePress(Action *action, State *state) override;

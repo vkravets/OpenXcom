@@ -24,6 +24,8 @@
 #include "../Engine/Font.h"
 #include "../Engine/Palette.h"
 #include "../Engine/Options.h"
+#include "../Engine/Game.h"
+#include "../Engine/Screen.h"
 #include "ArrowButton.h"
 #include "ComboBox.h"
 #include "ScrollBar.h"
@@ -44,7 +46,8 @@ TextList::TextList(int width, int height, int x, int y) : InteractiveSurface(wid
 	_dot(false), _selectable(false), _condensed(false), _contrast(false), _wrap(false), _flooding(false), _ignoreSeparators(false),
 	_bg(0), _selector(0), _margin(0), _scrolling(true), _arrowPos(-1), _scrollPos(4), _arrowType(ARROW_VERTICAL),
 	_leftClick(0), _leftPress(0), _leftRelease(0), _rightClick(0), _rightPress(0), _rightRelease(0),
-	_arrowsLeftEdge(0), _arrowsRightEdge(0), _noScrollLeftEdge(0), _noScrollRightEdge(0), _comboBox(0)
+	_arrowsLeftEdge(0), _arrowsRightEdge(0), _noScrollLeftEdge(0), _noScrollRightEdge(0), _comboBox(0),
+	_navigationActive(false), _navigationPart(0)
 {
 	_up = new ArrowButton(ARROW_BIG_UP, 13, 14, getX() + getWidth() + _scrollPos, getY());
 	_up->setVisible(false);
@@ -1096,10 +1099,21 @@ void TextList::blit(SDL_Surface *surface)
  */
 void TextList::handle(Action *action, State *state)
 {
+	const bool navigation = action->isNavigationAction();
+	const bool direct = navigation && state->containsSurface(this);
+	const auto stillAvailable = [this, state, navigation, direct]()
+	{
+		return !navigation || (state->isNavigationState() && (!direct || state->containsSurface(this)));
+	};
 	InteractiveSurface::handle(action, state);
+	if (!stillAvailable())
+		return;
 	_up->handle(action, state);
+	if (!stillAvailable()) return;
 	_down->handle(action, state);
+	if (!stillAvailable()) return;
 	_scrollbar->handle(action, state);
+	if (!stillAvailable()) return;
 	if (_arrowPos != -1 && !_rows.empty())
 	{
 		size_t startArrowIdx = _rows[_scroll];
@@ -1120,7 +1134,11 @@ void TextList::handle(Action *action, State *state)
 		for (size_t i = startArrowIdx; i < endArrowIdx; ++i)
 		{
 			_arrowLeft[i]->handle(action, state);
+			if (!stillAvailable())
+				return;
 			_arrowRight[i]->handle(action, state);
+			if (!stillAvailable())
+				return;
 		}
 	}
 	// scrolling by keyboard
@@ -1194,6 +1212,270 @@ bool TextList::isMouseTarget(double x, double y, Uint8 button)
 			return true;
 	}
 	return InteractiveSurface::isMouseTarget(x, y, button);
+}
+
+bool TextList::isNavigationTarget()
+{
+	if (!isNavigationEnabled() || !_visible || _hidden || !_isFocused || !_font || _rows.empty() ||
+		_texts.empty() || getWidth() <= 0 || getHeight() <= 0)
+		return false;
+	const bool rowActions = _comboBox || isButtonHandled(SDL_BUTTON_LEFT) ||
+		isButtonHandled(SDL_BUTTON_RIGHT) || isButtonHandled(SDL_BUTTON_MIDDLE) ||
+		getNavigationParts().size() > 1;
+	return (_selectable && rowActions) || (_scrolling && _rows.size() > _visibleRows);
+}
+
+std::vector<int> TextList::getNavigationParts() const
+{
+	std::vector<int> parts{0};
+	if (_arrowPos >= 0)
+	{
+		if (_leftClick || _leftPress || _leftRelease) parts.push_back(1);
+		if (_rightClick || _rightPress || _rightRelease) parts.push_back(2);
+	}
+	if (_noScrollRightEdge > _noScrollLeftEdge && _noScrollRightEdge > getX() &&
+		_noScrollLeftEdge < getX() + getWidth())
+		parts.push_back(3);
+	return parts;
+}
+
+SDL_Rect TextList::getNavigationRect(bool active) const
+{
+	SDL_Rect rect = {static_cast<Sint16>(getX()), static_cast<Sint16>(getY()),
+		static_cast<Uint16>(getWidth()), static_cast<Uint16>(getHeight())};
+	if (!active || !_navigationActive || !_selectable || !_font || _rows.empty())
+		return rect;
+	const size_t row = getSelectedRow();
+	if (row >= _texts.size())
+	{
+		rect.h = 0;
+		return rect;
+	}
+	const auto first = std::lower_bound(_rows.begin(), _rows.end(), row);
+	const auto last = std::upper_bound(first, _rows.end(), row);
+	const int lineHeight = _font->getHeight() + _font->getSpacing();
+	const int rowTop = getY() + (static_cast<int>(first - _rows.begin()) - static_cast<int>(_scroll)) * lineHeight;
+	const int rowBottom = rowTop + static_cast<int>(last - first) * lineHeight;
+	int left = getX(), right = getX() + getWidth();
+	int top = std::max(getY(), rowTop), bottom = std::min(getY() + getHeight(), rowBottom);
+	if (_navigationPart == 1 || _navigationPart == 2)
+	{
+		left = getX() + _arrowPos + (_navigationPart == 2 ? 12 : 0);
+		right = left + 11;
+		bottom = std::min(bottom, rowTop + 8);
+	}
+	else if (_navigationPart == 3)
+	{
+		left = std::max(left, _noScrollLeftEdge);
+		right = std::min(right, _noScrollRightEdge + 1);
+	}
+	else
+	{
+		// The row action must not accidentally land on its arrow controls or
+		// on the wheel-only allocation column. Choose the largest free span.
+		std::vector<std::pair<int, int>> spans{{left, right}};
+		const std::pair<int, int> excluded[] = {
+			{getX() + _arrowPos, getX() + _arrowPos + 23},
+			{_noScrollLeftEdge, _noScrollRightEdge + 1}
+		};
+		for (int i = 0; i < 2; ++i)
+		{
+			if ((i == 0 && _arrowPos < 0) || (i == 1 && _noScrollRightEdge <= _noScrollLeftEdge))
+				continue;
+			std::vector<std::pair<int, int>> remaining;
+			for (const auto &span : spans)
+			{
+				if (excluded[i].second <= span.first || excluded[i].first >= span.second)
+					remaining.push_back(span);
+				else
+				{
+					if (span.first < excluded[i].first) remaining.emplace_back(span.first, excluded[i].first);
+					if (excluded[i].second < span.second) remaining.emplace_back(excluded[i].second, span.second);
+				}
+			}
+			spans.swap(remaining);
+		}
+		if (!spans.empty())
+		{
+			const auto widest = std::max_element(spans.begin(), spans.end(), [](const auto &a, const auto &b)
+			{
+				return a.second - a.first < b.second - b.first;
+			});
+			left = widest->first;
+			right = widest->second;
+		}
+		else
+			right = left;
+	}
+	left = std::max(left, getX());
+	right = std::min(right, getX() + getWidth());
+	rect.x = static_cast<Sint16>(left);
+	rect.y = static_cast<Sint16>(top);
+	rect.w = static_cast<Uint16>(std::max(0, right - left));
+	rect.h = static_cast<Uint16>(std::max(0, bottom - top));
+	return rect;
+}
+
+void TextList::updateNavigationSelector()
+{
+	if (!_navigationActive || !_selectable || !_selector || !_bg)
+		return;
+	const int part = _navigationPart;
+	_navigationPart = 0;
+	SDL_Rect row = getNavigationRect(true);
+	_navigationPart = part;
+	if (row.h == 0)
+	{
+		_selector->setVisible(false);
+		return;
+	}
+	if (_selector->getHeight() != row.h)
+	{
+		delete _selector;
+		_selector = new Surface(getWidth(), row.h, getX(), row.y);
+		_selector->setPalette(getPalette());
+	}
+	_selector->setX(getX());
+	_selector->setY(row.y);
+	_selector->copy(_bg);
+	if (_contrast) _selector->offsetBlock(-5);
+	else if (_comboBox) _selector->offset(+1, Palette::backPos);
+	else _selector->offsetBlock(-10);
+	_selector->setVisible(true);
+}
+
+void TextList::updateNavigationArrows()
+{
+	if (_arrowPos < 0 || _scroll >= _rows.size())
+		return;
+	const size_t end = std::min(_rows.size(), _scroll + _visibleRows);
+	for (size_t line = _scroll; line < end; ++line)
+	{
+		const size_t row = _rows[line];
+		if (row >= _texts.size() || _texts[row].empty() || row >= _arrowLeft.size() || row >= _arrowRight.size())
+			continue;
+		const int y = getY() + _texts[row].front()->getY();
+		_arrowLeft[row]->setX(getX() + _arrowPos);
+		_arrowRight[row]->setX(getX() + _arrowPos + 12);
+		_arrowLeft[row]->setY(y);
+		_arrowRight[row]->setY(y);
+	}
+}
+
+void TextList::setNavigationRow(size_t row, State *state)
+{
+	if (_rows.empty() || _texts.empty() || !_font)
+	{
+		if (_selector) _selector->setVisible(false);
+		return;
+	}
+	row = std::min(row, _texts.size() - 1);
+	const auto first = std::lower_bound(_rows.begin(), _rows.end(), row);
+	const auto last = std::upper_bound(first, _rows.end(), row);
+	if (first == _rows.end())
+		return;
+	_selRow = first - _rows.begin();
+	const size_t end = last - _rows.begin();
+	const size_t visible = std::max(size_t(1), _visibleRows);
+	if (_selRow < _scroll || end - _selRow > visible)
+		scrollTo(_selRow);
+	else if (end > _scroll + visible)
+		scrollTo(end - visible);
+	const auto parts = getNavigationParts();
+	if (std::find(parts.begin(), parts.end(), _navigationPart) == parts.end())
+		_navigationPart = 0;
+	draw();
+	updateNavigationArrows();
+	updateNavigationSelector();
+	if (state && _selectable)
+	{
+		// Match row-hover information panels without changing the real cursor
+		// or passing motion through pressed list-arrow handlers.
+		SDL_Rect rect = getNavigationRect(true);
+		if (rect.w == 0 || rect.h == 0)
+			return;
+		Screen *screen = State::getGame()->getScreen();
+		SDL_Event event = {};
+		event.type = SDL_MOUSEMOTION;
+		event.motion.x = static_cast<Uint16>((rect.x + rect.w / 2.0) * screen->getXScale() + screen->getCursorLeftBlackBand());
+		event.motion.y = static_cast<Uint16>((rect.y + rect.h / 2.0) * screen->getYScale() + screen->getCursorTopBlackBand());
+		Action action(&event, screen->getXScale(), screen->getYScale(), screen->getCursorTopBlackBand(), screen->getCursorLeftBlackBand());
+		action.setMouseAction(event.motion.x, event.motion.y, getX(), getY());
+		action.setSender(this);
+		action.setNavigationAction(true);
+		InteractiveSurface::mouseOver(&action, state);
+	}
+}
+
+Uint8 TextList::getNavigationMouseButton(NavigationCommand command) const
+{
+	if (_navigationPart == 3)
+	{
+		if (command == NavigationCommand::Activate) return SDL_BUTTON_WHEELUP;
+		if (command == NavigationCommand::Secondary) return SDL_BUTTON_WHEELDOWN;
+	}
+	return InteractiveSurface::getNavigationMouseButton(command);
+}
+
+NavigationResult TextList::handleNavigation(NavigationCommand command, State *state)
+{
+	if (command == NavigationCommand::Cancel || command == NavigationCommand::End)
+	{
+		_navigationActive = false;
+		if (_selector) _selector->setVisible(false);
+		return NavigationResult::Finished;
+	}
+	if (!isNavigationTarget())
+	{
+		const bool active = _navigationActive;
+		_navigationActive = false;
+		if (_selector) _selector->setVisible(false);
+		return active ? NavigationResult::Finished : NavigationResult::Unhandled;
+	}
+	if (command == NavigationCommand::Begin)
+	{
+		_navigationActive = true;
+		_navigationPart = 0;
+		const size_t row = getSelectedRow();
+		setNavigationRow(row < _texts.size() ? row : 0, state);
+		return NavigationResult::Handled;
+	}
+	if (!_navigationActive)
+		return NavigationResult::Unhandled;
+	if (command == NavigationCommand::Up || command == NavigationCommand::Down)
+	{
+		if (!_selectable)
+		{
+			if (command == NavigationCommand::Up) scrollUp(false);
+			else scrollDown(false);
+			return NavigationResult::Handled;
+		}
+		size_t row = std::min(size_t(getSelectedRow()), _texts.size() - 1);
+		if (command == NavigationCommand::Up && row > 0) --row;
+		else if (command == NavigationCommand::Down && row + 1 < _texts.size()) ++row;
+		setNavigationRow(row, state);
+		return NavigationResult::Handled;
+	}
+	if (command == NavigationCommand::Left || command == NavigationCommand::Right)
+	{
+		const auto parts = getNavigationParts();
+		auto current = std::find(parts.begin(), parts.end(), _navigationPart);
+		int index = current == parts.end() ? 0 : static_cast<int>(current - parts.begin());
+		index = std::max(0, std::min(static_cast<int>(parts.size()) - 1,
+			index + (command == NavigationCommand::Left ? -1 : 1)));
+		_navigationPart = parts[index];
+		setNavigationRow(getSelectedRow(), state);
+		return NavigationResult::Handled;
+	}
+	if (command == NavigationCommand::Activate || command == NavigationCommand::Secondary || command == NavigationCommand::Tertiary)
+	{
+		if (!_selectable)
+			return NavigationResult::Handled;
+		setNavigationRow(getSelectedRow());
+		const SDL_Rect rect = getNavigationRect(true);
+		return rect.w && rect.h ? NavigationResult::Unhandled : NavigationResult::Handled;
+	}
+	return NavigationResult::Unhandled;
 }
 
 /**
@@ -1276,11 +1558,14 @@ void TextList::mouseRelease(Action *action, State *state)
  */
 void TextList::mouseClick(Action *action, State *state)
 {
+	const bool direct = action->isNavigationAction() && state->containsSurface(this);
 	if (_selectable)
 	{
 		if (_selRow < _rows.size())
 		{
 			InteractiveSurface::mouseClick(action, state);
+			if (action->isNavigationAction() && (!state->isNavigationState() || (direct && !state->containsSurface(this))))
+				return;
 			if (_comboBox && action->getDetails()->button.button == SDL_BUTTON_LEFT)
 			{
 				_comboBox->setSelected(_selRow);
@@ -1357,7 +1642,7 @@ void TextList::mouseOver(Action *action, State *state)
  */
 void TextList::mouseOut(Action *action, State *state)
 {
-	if (_selectable)
+	if (_selectable && !_navigationActive)
 	{
 		_selector->setVisible(false);
 	}

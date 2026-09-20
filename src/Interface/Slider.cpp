@@ -17,6 +17,7 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Slider.h"
+#include <algorithm>
 #include "../fmath.h"
 #include "../Engine/Action.h"
 #include "TextButton.h"
@@ -38,7 +39,7 @@ bool Slider::isButtonHandled(Uint8 button)
  * @param x X position in pixels.
  * @param y Y position in pixels.
  */
-Slider::Slider(int width, int height, int x, int y) : InteractiveSurface(width, height, x, y), _pos(0.0), _min(0), _max(100), _pressed(false), _change(0), _offsetX(0)
+Slider::Slider(int width, int height, int x, int y) : InteractiveSurface(width, height, x, y), _pos(0.0), _min(0), _max(100), _pressed(false), _navigationChanged(false), _change(0), _offsetX(0)
 {
 	_thickness = 5;
 	_textness = 8;
@@ -247,6 +248,82 @@ void Slider::setValue(int value)
 int Slider::getValue() const
 {
 	return _value;
+}
+
+bool Slider::isNavigationTarget()
+{
+	return InteractiveSurface::isNavigationTarget();
+}
+
+SDL_Rect Slider::getNavigationRect(bool active) const
+{
+	return active ? _button->getNavigationRect(false) : InteractiveSurface::getNavigationRect(false);
+}
+
+NavigationResult Slider::handleNavigation(NavigationCommand command, State *state)
+{
+	if (command == NavigationCommand::Cancel || command == NavigationCommand::End || command == NavigationCommand::Activate)
+	{
+		const bool changed = _navigationChanged;
+		_navigationChanged = false;
+		if (changed && state && state->isNavigationState())
+		{
+			SDL_Event event = {};
+			event.type = SDL_MOUSEBUTTONUP;
+			event.button.button = SDL_BUTTON_LEFT;
+			event.button.state = SDL_RELEASED;
+			Action action(&event, 1.0, 1.0, 0, 0);
+			action.setSender(this);
+			action.setNavigationAction(true);
+			// Audio sliders attach their preview sound to the release callback.
+			const auto all = _release.find(0), left = _release.find(SDL_BUTTON_LEFT);
+			const ActionHandler allHandler = all == _release.end() ? nullptr : all->second;
+			const ActionHandler leftHandler = left == _release.end() ? nullptr : left->second;
+			if (allHandler)
+				(state->*allHandler)(&action);
+			if (leftHandler && state->isNavigationState() && state->containsSurface(this))
+				(state->*leftHandler)(&action);
+		}
+		return NavigationResult::Finished;
+	}
+	if (!isNavigationTarget() || !state || !state->isNavigationState())
+		return NavigationResult::Finished;
+	if (command == NavigationCommand::Begin)
+	{
+		_navigationChanged = false;
+		return NavigationResult::Handled;
+	}
+	int direction;
+	switch (command)
+	{
+	case NavigationCommand::Left:
+	case NavigationCommand::Down: direction = -1; break;
+	case NavigationCommand::Right:
+	case NavigationCommand::Up: direction = 1; break;
+	default: return NavigationResult::Unhandled;
+	}
+	if (_min == _max)
+		return NavigationResult::Handled;
+	const int step = direction * (_max > _min ? 1 : -1);
+	// Check the endpoint first, including reversed ranges and integer limits.
+	if ((step > 0 && _value >= std::max(_min, _max)) ||
+		(step < 0 && _value <= std::min(_min, _max)))
+		return NavigationResult::Handled;
+	setValue(_value + step);
+	_navigationChanged = true;
+	if (_change)
+	{
+		SDL_Event event = {};
+		event.type = SDL_KEYDOWN;
+		event.key.state = SDL_PRESSED;
+		event.key.keysym.sym = direction > 0 ? SDLK_RIGHT : SDLK_LEFT;
+		Action action(&event, 1.0, 1.0, 0, 0);
+		action.setSender(this);
+		action.setNavigationAction(true);
+		(state->*_change)(&action);
+	}
+	// A callback can close the state; do not touch the slider afterwards.
+	return NavigationResult::Handled;
 }
 
 /**

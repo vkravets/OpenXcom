@@ -516,6 +516,44 @@ void GeoscapeState::blit()
 	}
 }
 
+bool GeoscapeState::allowButtonNavigation() const
+{
+	return _dogfights.size() == _minimizedDogfights;
+}
+
+State *GeoscapeState::getNavigationState()
+{
+	if (_navigationState == this && allowButtonNavigation())
+		return this;
+	for (auto *dogfight : _dogfights)
+		if (dogfight == _navigationState && !dogfight->dogfightEnded())
+			return dogfight;
+	_navigationState = nullptr;
+	for (auto *dogfight : _dogfights)
+		if (!dogfight->isMinimized() && !dogfight->dogfightEnded())
+			return dogfight;
+	return this;
+}
+
+bool GeoscapeState::cycleNavigationState(bool backwards)
+{
+	std::vector<State*> owners;
+	if (allowButtonNavigation())
+		owners.push_back(this);
+	for (auto *dogfight : _dogfights)
+		if (!dogfight->dogfightEnded())
+			owners.push_back(dogfight);
+	if (owners.size() < 2)
+		return false;
+	State *current = getNavigationState();
+	const auto found = std::find(owners.begin(), owners.end(), current);
+	const size_t index = found == owners.end() ? 0 : found - owners.begin();
+	// Clear the old selection before changing which nested state owns navigation.
+	current->clearButtonNavigation();
+	_navigationState = owners[(index + (backwards ? owners.size() - 1 : 1)) % owners.size()];
+	return true;
+}
+
 /**
  * Handle key shortcuts.
  * @param action Pointer to an action.
@@ -3175,9 +3213,11 @@ void GeoscapeState::btnFundingClick(Action *)
  * Starts rotating the globe to the left.
  * @param action Pointer to an action.
  */
-void GeoscapeState::btnRotateLeftPress(Action *)
+void GeoscapeState::btnRotateLeftPress(Action *action)
 {
 	_globe->rotateLeft();
+	if (action && action->isNavigationAction())
+		_globe->rotate();
 }
 
 /**
@@ -3193,9 +3233,11 @@ void GeoscapeState::btnRotateLeftRelease(Action *)
  * Starts rotating the globe to the right.
  * @param action Pointer to an action.
  */
-void GeoscapeState::btnRotateRightPress(Action *)
+void GeoscapeState::btnRotateRightPress(Action *action)
 {
 	_globe->rotateRight();
+	if (action && action->isNavigationAction())
+		_globe->rotate();
 }
 
 /**
@@ -3211,9 +3253,11 @@ void GeoscapeState::btnRotateRightRelease(Action *)
  * Starts rotating the globe upwards.
  * @param action Pointer to an action.
  */
-void GeoscapeState::btnRotateUpPress(Action *)
+void GeoscapeState::btnRotateUpPress(Action *action)
 {
 	_globe->rotateUp();
+	if (action && action->isNavigationAction())
+		_globe->rotate();
 }
 
 /**
@@ -3229,9 +3273,11 @@ void GeoscapeState::btnRotateUpRelease(Action *)
  * Starts rotating the globe downwards.
  * @param action Pointer to an action.
  */
-void GeoscapeState::btnRotateDownPress(Action *)
+void GeoscapeState::btnRotateDownPress(Action *action)
 {
 	_globe->rotateDown();
+	if (action && action->isNavigationAction())
+		_globe->rotate();
 }
 
 /**

@@ -309,7 +309,8 @@ void ResearchState::moveTopicUp(Action* action, unsigned int row, bool max)
 		std::swap(topics[row], topics[row - 1]);
 		if (row != _lstResearch->getScroll())
 		{
-			SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(), action->getTopBlackBand() + action->getYMouse() - static_cast<Uint16>(8 * action->getYScale()));
+			if (!action->isNavigationAction())
+				SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(), action->getTopBlackBand() + action->getYMouse() - static_cast<Uint16>(8 * action->getYScale()));
 		}
 		else
 		{
@@ -317,6 +318,8 @@ void ResearchState::moveTopicUp(Action* action, unsigned int row, bool max)
 		}
 	}
 	fillProjectList(_lstResearch->getScroll());
+	if (action->isNavigationAction())
+		_lstResearch->setNavigationRow(max ? 0 : row - 1);
 }
 
 /**
@@ -360,7 +363,8 @@ void ResearchState::moveTopicDown(Action* action, unsigned int row, bool max)
 		std::swap(topics[row], topics[row + 1]);
 		if (row != _lstResearch->getVisibleRows() - 1 + _lstResearch->getScroll())
 		{
-			SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(), action->getTopBlackBand() + action->getYMouse() + static_cast<Uint16>(8 * action->getYScale()));
+			if (!action->isNavigationAction())
+				SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(), action->getTopBlackBand() + action->getYMouse() + static_cast<Uint16>(8 * action->getYScale()));
 		}
 		else
 		{
@@ -368,6 +372,8 @@ void ResearchState::moveTopicDown(Action* action, unsigned int row, bool max)
 		}
 	}
 	fillProjectList(_lstResearch->getScroll());
+	if (action->isNavigationAction())
+		_lstResearch->setNavigationRow(max ? topics.size() - 1 : row + 1);
 }
 
 }

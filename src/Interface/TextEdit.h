@@ -61,6 +61,10 @@ public:
 	void handle(Action *action, State *state) override;
 	/// Checks whether this field can receive a targeted controller edit.
 	bool isControllerEditable() const;
+	/// Includes fields which are not focused yet in interface navigation.
+	bool isNavigationTarget() override;
+	/// Focuses, edits or leaves this field without changing its modal policy.
+	NavigationResult handleNavigation(NavigationCommand command, State *state) override;
 	/// Sets focus on this text edit.
 	void setFocus(bool focus, bool modal = true) override;
 	/// Sets the text size to big.

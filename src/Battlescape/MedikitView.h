@@ -45,5 +45,8 @@ public:
 	int getSelectedPart() const;
 	/// Updates the selected body part.
 	void updateSelectedPart();
+	bool isNavigationTarget() override;
+	SDL_Rect getNavigationRect(bool active) const override;
+	NavigationResult handleNavigation(NavigationCommand command, State *state) override;
 };
 }

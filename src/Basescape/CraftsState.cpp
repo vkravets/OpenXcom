@@ -187,7 +187,8 @@ void CraftsState::lstCraftsClick(Action *action)
 			// warp mouse
 			if (row != _lstCrafts->getVisibleRows() - 1 + _lstCrafts->getScroll())
 			{
-				SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(), action->getTopBlackBand() + action->getYMouse() + static_cast<Uint16>(8 * action->getYScale()));
+				if (!action->isNavigationAction())
+					SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(), action->getTopBlackBand() + action->getYMouse() + static_cast<Uint16>(8 * action->getYScale()));
 			}
 			else
 			{
@@ -196,6 +197,8 @@ void CraftsState::lstCraftsClick(Action *action)
 
 			// reload the UI
 			initList(_lstCrafts->getScroll());
+			if (action->isNavigationAction())
+				_lstCrafts->setNavigationRow(row + 1);
 		}
 		if (!shift && row > 0)
 		{
@@ -205,7 +208,8 @@ void CraftsState::lstCraftsClick(Action *action)
 			// warp mouse
 			if (row != _lstCrafts->getScroll())
 			{
-				SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(), action->getTopBlackBand() + action->getYMouse() - static_cast<Uint16>(8 * action->getYScale()));
+				if (!action->isNavigationAction())
+					SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(), action->getTopBlackBand() + action->getYMouse() - static_cast<Uint16>(8 * action->getYScale()));
 			}
 			else
 			{
@@ -214,6 +218,8 @@ void CraftsState::lstCraftsClick(Action *action)
 
 			// reload the UI
 			initList(_lstCrafts->getScroll());
+			if (action->isNavigationAction())
+				_lstCrafts->setNavigationRow(row - 1);
 		}
 	}
 	else if (_game->isMiddleClick(action))

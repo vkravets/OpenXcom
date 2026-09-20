@@ -40,6 +40,7 @@ private:
 	double _pos;
 	int _min, _max, _value;
 	bool _pressed;
+	bool _navigationChanged;
 	ActionHandler _change;
 	int _thickness, _textness, _minX, _maxX, _offsetX;
 
@@ -72,6 +73,12 @@ public:
 	void setValue(int value);
 	/// Gets the slider's value.
 	int getValue() const;
+	/// Checks whether the slider is available for interface navigation.
+	bool isNavigationTarget() override;
+	/// Highlights the thumb while adjusting the slider.
+	SDL_Rect getNavigationRect(bool active) const override;
+	/// Adjusts the value through the normal change and release callbacks.
+	NavigationResult handleNavigation(NavigationCommand command, State *state) override;
 	/// Blits the slider onto another surface.
 	void blit(SDL_Surface *surface) override;
 	/// Moves the slider.

@@ -40,9 +40,16 @@ private:
 	int _dynamicOffset;
 	int _animFrame;
 	Timer* _animTimer;
+	size_t _navigationHand = 0;
+	std::vector<SDL_Rect> getNavigationHands() const;
 	/// Gets the slot in the specified position.
 	RuleInventory *getSlotInPosition(int *x, int *y) const;
 public:
+	bool isNavigationTarget() override;
+	bool blocksNavigationAt(double x, double y) override;
+	SDL_Rect getNavigationRect(bool active) const override;
+	NavigationResult handleNavigation(NavigationCommand command, State *state) override;
+	Uint8 getNavigationMouseButton(NavigationCommand command) const override;
 	/// Creates a new inventory view at the specified position and size.
 	AlienInventory(Game *game, int width, int height, int x = 0, int y = 0);
 	/// Cleans up the inventory.

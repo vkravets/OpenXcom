@@ -19,6 +19,8 @@
 #include "State.h"
 #include <algorithm>
 #include <climits>
+#include <limits>
+#include "Action.h"
 #include "InteractiveSurface.h"
 #include "Game.h"
 #include "Screen.h"
@@ -31,10 +33,13 @@
 #include "../Mod/Mod.h"
 #include "../Interface/Window.h"
 #include "../Interface/TextButton.h"
+#include "../Interface/ImageButton.h"
 #include "../Interface/TextEdit.h"
 #include "../Interface/TextList.h"
 #include "../Interface/BattlescapeButton.h"
 #include "../Interface/ComboBox.h"
+#include "../Interface/Slider.h"
+#include "../Interface/Text.h"
 #include "../Interface/Cursor.h"
 #include "../Interface/FpsCounter.h"
 #include "../Savegame/SavedBattleGame.h"
@@ -51,7 +56,7 @@ Game* State::_game = 0;
  * By default states are full-screen.
  * @param game Pointer to the core game.
  */
-State::State() : _screen(true), _soundPlayed(false), _modal(0), _ruleInterface(0), _ruleInterfaceParent(0), _customSound(nullptr)
+State::State() : _screen(true), _soundPlayed(false), _modal(0), _ruleInterface(0), _ruleInterfaceParent(0), _customSound(nullptr), _navigationButton(nullptr), _navigationFrame(nullptr), _navigationEditing(false)
 {
 	// initialize palette to all black
 	memset(_palette, 0, sizeof(_palette));
@@ -63,6 +68,7 @@ State::State() : _screen(true), _soundPlayed(false), _modal(0), _ruleInterface(0
  */
 State::~State()
 {
+	delete _navigationFrame;
 	// Surfaces are deleted in reverse order of adding, same like local variables
 	for (auto* surface : Collections::reverse(Collections::range(_surfacesOwned)))
 	{
@@ -469,6 +475,9 @@ bool State::isMouseTarget(double x, double y, Uint8 button) const
 
 TextEdit *State::getFocusedTextEdit() const
 {
+	State *owner = const_cast<State*>(this)->getNavigationState();
+	if (owner != this)
+		return owner->getFocusedTextEdit();
 	if (_modal)
 	{
 		auto *editor = dynamic_cast<TextEdit*>(_modal);
@@ -490,6 +499,412 @@ bool State::handleControllerButton(bool confirm, Action *action)
 		return false;
 	button->controllerButtonPress(action, this, confirm);
 	return true;
+}
+
+bool State::allowButtonNavigation() const
+{
+	return true;
+}
+
+State *State::getNavigationState()
+{
+	return this;
+}
+
+bool State::cycleNavigationState(bool)
+{
+	return false;
+}
+
+bool State::isNavigationBoundary(bool backwards) const
+{
+	if (_navigationEditing || !_navigationButton)
+		return false;
+	const auto controls = getNavigationButtons();
+	return !controls.empty() && _navigationButton == (backwards ? controls.front() : controls.back());
+}
+
+bool State::isNavigationState() const
+{
+	return _game->getState() && _game->getState()->getNavigationState() == this;
+}
+
+bool State::containsSurface(const Surface *surface) const
+{
+	return std::find(_surfaces.begin(), _surfaces.end(), surface) != _surfaces.end();
+}
+
+bool State::isNavigationEditing() const
+{
+	State *owner = const_cast<State*>(this)->getNavigationState();
+	if (owner != this)
+		return owner->isNavigationEditing();
+	InteractiveSurface *control = getNavigationButton();
+	if (!_navigationEditing || !control)
+		return false;
+	// Mouse selection or native Enter may already have completed interaction.
+	if (auto *editor = dynamic_cast<TextEdit*>(control))
+		return editor->isFocused();
+	if (auto *combo = dynamic_cast<ComboBox*>(control))
+		return combo->isOpen();
+	return true;
+}
+
+void State::finishNavigationControl(bool cancel)
+{
+	InteractiveSurface *control = _navigationButton;
+	const bool editing = _navigationEditing;
+	_navigationEditing = false;
+	if (editing && control && containsSurface(control))
+	{
+		if (auto *editor = dynamic_cast<TextEdit*>(control))
+			if (!editor->isFocused()) return;
+		if (auto *combo = dynamic_cast<ComboBox*>(control))
+			if (!combo->isOpen()) return;
+		control->handleNavigation(cancel ? NavigationCommand::Cancel : NavigationCommand::End, this);
+	}
+}
+
+bool State::cancelNavigationControl()
+{
+	State *owner = getNavigationState();
+	if (owner != this)
+		return owner->cancelNavigationControl();
+	if (!_navigationEditing)
+		return false;
+	if (getNavigationButton() && !isNavigationEditing())
+	{
+		_navigationEditing = false;
+		return false;
+	}
+	finishNavigationControl(true);
+	return true;
+}
+
+std::vector<InteractiveSurface*> State::getNavigationButtons() const
+{
+	std::vector<InteractiveSurface*> buttons;
+	if (!isNavigationState() || !allowButtonNavigation())
+		return buttons;
+
+	const SDL_Surface *screen = _game->getScreen()->getSurface();
+	for (size_t i = 0; i < _surfaces.size(); ++i)
+	{
+		auto *button = dynamic_cast<InteractiveSurface*>(_surfaces[i]);
+		if (!button || !button->isNavigationEnabled() || !button->getVisible() ||
+			!button->isNavigationTarget() || (_modal && !dynamic_cast<TextEdit*>(_modal) && button != _modal))
+			continue;
+		const SDL_Rect rect = button->getNavigationRect(false);
+		const double x = rect.x + rect.w / 2.0;
+		const double y = rect.y + rect.h / 2.0;
+		if (rect.w == 0 || rect.h == 0 || x < 0 || y < 0 || x >= screen->w || y >= screen->h)
+			continue;
+
+		bool covered = false;
+		for (size_t j = i + 1; j < _surfaces.size(); ++j)
+		{
+			auto *above = dynamic_cast<InteractiveSurface*>(_surfaces[j]);
+			if (above && above != _modal && above->blocksNavigationAt(x, y))
+			{
+				covered = true;
+				break;
+			}
+		}
+		if (!covered)
+			buttons.push_back(button);
+	}
+	std::stable_sort(buttons.begin(), buttons.end(), [](const InteractiveSurface *a, const InteractiveSurface *b)
+	{
+		const SDL_Rect ra = a->getNavigationRect(false), rb = b->getNavigationRect(false);
+		return ra.y != rb.y ? ra.y < rb.y : ra.x < rb.x;
+	});
+	return buttons;
+}
+
+InteractiveSurface *State::getNavigationButton() const
+{
+	State *owner = const_cast<State*>(this)->getNavigationState();
+	if (owner != this)
+		return owner->getNavigationButton();
+	if (!_navigationButton)
+		return nullptr;
+	const auto buttons = getNavigationButtons();
+	return std::find(buttons.begin(), buttons.end(), _navigationButton) != buttons.end() ? _navigationButton : nullptr;
+}
+
+bool State::navigateButtons(int dx, int dy, bool backwards)
+{
+	State *owner = getNavigationState();
+	if (dx == 0 && dy == 0 && owner->isNavigationBoundary(backwards) && cycleNavigationState(backwards))
+	{
+		owner = getNavigationState();
+		owner->clearButtonNavigation();
+	}
+	if (owner != this)
+		return owner->navigateButtons(dx, dy, backwards);
+	if (_navigationEditing && getNavigationButton() && !isNavigationEditing())
+		_navigationEditing = false;
+	if (_navigationEditing)
+	{
+		if (dx == 0 && dy == 0)
+		{
+			finishNavigationControl(false);
+			if (!isNavigationState())
+				return true;
+		}
+		else if (InteractiveSurface *control = getNavigationButton())
+		{
+			const NavigationCommand command = dx < 0 ? NavigationCommand::Left : dx > 0 ? NavigationCommand::Right :
+				dy < 0 ? NavigationCommand::Up : NavigationCommand::Down;
+			const NavigationResult result = control->handleNavigation(command, this);
+			if (isNavigationState() && result == NavigationResult::Finished)
+				finishNavigationControl(false);
+			return true;
+		}
+		else
+			finishNavigationControl(false);
+	}
+	const auto buttons = getNavigationButtons();
+	if (buttons.empty())
+	{
+		clearButtonNavigation();
+		return false;
+	}
+	const auto current = std::find(buttons.begin(), buttons.end(), _navigationButton);
+	if (current == buttons.end())
+	{
+		_navigationButton = backwards || dx < 0 || dy < 0 ? buttons.back() : buttons.front();
+		return true;
+	}
+	if (dx == 0 && dy == 0)
+	{
+		const size_t index = static_cast<size_t>(current - buttons.begin());
+		_navigationButton = buttons[(index + (backwards ? buttons.size() - 1 : 1)) % buttons.size()];
+		return true;
+	}
+	dx = (dx > 0) - (dx < 0);
+	dy = (dy > 0) - (dy < 0);
+	const SDL_Rect origin = _navigationButton->getNavigationRect(false);
+	const double x = origin.x + origin.w / 2.0;
+	const double y = origin.y + origin.h / 2.0;
+	InteractiveSurface *next = nullptr;
+	double best = std::numeric_limits<double>::max();
+	bool bestAligned = false;
+	const auto isAligned = [origin, dx, dy](const InteractiveSurface *button)
+	{
+		const SDL_Rect rect = button->getNavigationRect(false);
+		return dy == 0 ?
+			(rect.y < origin.y + origin.h && rect.y + rect.h > origin.y) : dx == 0 &&
+			(rect.x < origin.x + origin.w && rect.x + rect.w > origin.x);
+	};
+	for (auto *button : buttons)
+	{
+		if (button == _navigationButton)
+			continue;
+		const SDL_Rect rect = button->getNavigationRect(false);
+		const double deltaX = rect.x + rect.w / 2.0 - x;
+		const double deltaY = rect.y + rect.h / 2.0 - y;
+		const double forward = deltaX * dx + deltaY * dy;
+		const double across = deltaX * dy - deltaY * dx;
+		const bool aligned = isAligned(button);
+		// Stay within the current row/column when possible, even when wide
+		// buttons leave a large gap. Use diagonal proximity as a fallback.
+		const double distance = forward * forward + 4 * across * across;
+		if (forward > 0 && ((!bestAligned && aligned) || (aligned == bestAligned && distance < best)))
+		{
+			next = button;
+			best = distance;
+			bestAligned = aligned;
+		}
+	}
+	if (!next)
+	{
+		double edge = std::numeric_limits<double>::max();
+		best = std::numeric_limits<double>::max();
+		for (auto *button : buttons)
+		{
+			if (button == _navigationButton)
+				continue;
+			const SDL_Rect rect = button->getNavigationRect(false);
+			const double deltaX = rect.x + rect.w / 2.0 - x;
+			const double deltaY = rect.y + rect.h / 2.0 - y;
+			const double forward = deltaX * dx + deltaY * dy;
+			const double across = deltaX * dy - deltaY * dx;
+			const bool aligned = isAligned(button);
+			if ((!bestAligned && aligned) || (aligned == bestAligned &&
+				(forward < edge || (forward == edge && across * across < best))))
+			{
+				next = button;
+				edge = forward;
+				best = across * across;
+				bestAligned = aligned;
+			}
+		}
+	}
+	if (next)
+		_navigationButton = next;
+	return true;
+}
+
+void State::clearButtonNavigation()
+{
+	State *owner = getNavigationState();
+	if (owner != this)
+	{
+		owner->clearButtonNavigation();
+		return;
+	}
+	finishNavigationControl(false);
+	_navigationButton = nullptr;
+}
+
+bool State::activateNavigationButton(Uint8 mouseButton)
+{
+	State *owner = getNavigationState();
+	if (owner != this)
+		return owner->activateNavigationButton(mouseButton);
+	InteractiveSurface *button = getNavigationButton();
+	if (!button || _game->getMouseButtonState())
+		return false;
+	if (_navigationEditing && !isNavigationEditing())
+		_navigationEditing = false;
+	const NavigationCommand command = mouseButton == SDL_BUTTON_RIGHT ? NavigationCommand::Secondary :
+		mouseButton == SDL_BUTTON_MIDDLE ? NavigationCommand::Tertiary : NavigationCommand::Activate;
+	if (!_navigationEditing)
+	{
+		const NavigationResult begin = button->handleNavigation(NavigationCommand::Begin, this);
+		if (!isNavigationState() || !containsSurface(button))
+			return true;
+		if (begin != NavigationResult::Unhandled)
+		{
+			_navigationEditing = begin == NavigationResult::Handled;
+			if (mouseButton == SDL_BUTTON_LEFT || begin == NavigationResult::Finished)
+				return true;
+		}
+	}
+	if (_navigationEditing || mouseButton != SDL_BUTTON_LEFT)
+	{
+		const NavigationResult result = button->handleNavigation(command, this);
+		if (!isNavigationState() || !containsSurface(button))
+			return true;
+		if (result != NavigationResult::Unhandled)
+		{
+			if (result == NavigationResult::Finished)
+				finishNavigationControl(false);
+			return true;
+		}
+	}
+	mouseButton = button->getNavigationMouseButton(command);
+	const SDL_Rect rect = button->getNavigationRect(isNavigationEditing());
+	if (!rect.w || !rect.h)
+		return true;
+
+	Screen *screen = _game->getScreen();
+	SDL_Event event = {};
+	event.type = SDL_MOUSEBUTTONDOWN;
+	event.button.button = mouseButton;
+	event.button.state = SDL_PRESSED;
+	event.button.x = static_cast<Uint16>((rect.x + rect.w / 2.0) * screen->getXScale() + screen->getCursorLeftBlackBand());
+	event.button.y = static_cast<Uint16>((rect.y + rect.h / 2.0) * screen->getYScale() + screen->getCursorTopBlackBand());
+	Action press(&event, screen->getXScale(), screen->getYScale(), screen->getCursorTopBlackBand(), screen->getCursorLeftBlackBand());
+	press.setNavigationAction(true);
+	button->handle(&press, this);
+
+	// Press callbacks can close the screen, remove controls or disable this
+	// button. Never deliver a click into a replaced state or a removed surface.
+	if (!isNavigationState() || !containsSurface(button))
+		return true;
+	const auto buttons = getNavigationButtons();
+	if (std::find(buttons.begin(), buttons.end(), button) == buttons.end())
+	{
+		button->unpress(this);
+		return true;
+	}
+	event.type = SDL_MOUSEBUTTONUP;
+	event.button.state = SDL_RELEASED;
+	Action release(&event, screen->getXScale(), screen->getYScale(), screen->getCursorTopBlackBand(), screen->getCursorLeftBlackBand());
+	release.setNavigationAction(true);
+	button->handle(&release, this);
+
+	if (!_navigationEditing && isNavigationState() && containsSurface(button))
+	{
+		// Restore real pointer hover after the targeted click, without moving
+		// the physical cursor or broadcasting to a focused text editor.
+		int mouseX, mouseY;
+		SDL_GetMouseState(&mouseX, &mouseY);
+		event = {};
+		event.type = SDL_MOUSEMOTION;
+		event.motion.x = static_cast<Uint16>(mouseX);
+		event.motion.y = static_cast<Uint16>(mouseY);
+		event.motion.state = _game->getMouseButtonState();
+		Action motion(&event, screen->getXScale(), screen->getYScale(), screen->getCursorTopBlackBand(), screen->getCursorLeftBlackBand());
+		button->handle(&motion, this);
+	}
+	return true;
+}
+
+void State::blitButtonNavigation()
+{
+	State *owner = getNavigationState();
+	if (owner != this)
+	{
+		owner->blitButtonNavigation();
+		return;
+	}
+	InteractiveSurface *button = getNavigationButton();
+	if (!button)
+		return;
+	if (!_navigationFrame)
+		_navigationFrame = new Surface(1, 1);
+	const SDL_Rect rect = button->getNavigationRect(isNavigationEditing());
+	if (!rect.w || !rect.h)
+		return;
+	if (_navigationFrame->getWidth() != rect.w + 2)
+		_navigationFrame->setWidth(rect.w + 2);
+	if (_navigationFrame->getHeight() != rect.h + 2)
+		_navigationFrame->setHeight(rect.h + 2);
+	_navigationFrame->setX(rect.x - 1);
+	_navigationFrame->setY(rect.y - 1);
+	_navigationFrame->setPalette(_palette);
+
+	Uint8 color = _cursorColor;
+	if (auto *textButton = dynamic_cast<TextButton*>(button))
+		color = textButton->getColor();
+	else if (auto *imageButton = dynamic_cast<ImageButton*>(button))
+		color = imageButton->getColor();
+	else if (auto *battleButton = dynamic_cast<BattlescapeButton*>(button))
+		color = battleButton->getColor();
+	else if (auto *list = dynamic_cast<TextList*>(button))
+		color = list->getColor();
+	else if (auto *editor = dynamic_cast<TextEdit*>(button))
+		color = editor->getColor();
+	else if (auto *combo = dynamic_cast<ComboBox*>(button))
+		color = combo->getColor();
+	else if (auto *slider = dynamic_cast<Slider*>(button))
+		color = slider->getColor();
+	else if (auto *label = dynamic_cast<Text*>(button))
+		color = label->getColor();
+	const int ramp = (color / 16) * 16;
+	int brightest = -1;
+	for (int i = ramp; i < ramp + 16; ++i)
+	{
+		if (i == 0)
+			continue;
+		const SDL_Color &shade = _palette[i];
+		const int brightness = 299 * shade.r + 587 * shade.g + 114 * shade.b;
+		if (brightness > brightest)
+		{
+			brightest = brightness;
+			color = static_cast<Uint8>(i);
+		}
+	}
+	_navigationFrame->draw();
+	const int width = _navigationFrame->getWidth(), height = _navigationFrame->getHeight();
+	_navigationFrame->drawRect(0, 0, width, 1, color);
+	_navigationFrame->drawRect(0, height - 1, width, 1, color);
+	_navigationFrame->drawRect(0, 1, 1, height - 2, color);
+	_navigationFrame->drawRect(width - 1, 1, 1, height - 2, color);
+	_navigationFrame->blit(_game->getScreen()->getSurface());
 }
 
 /**

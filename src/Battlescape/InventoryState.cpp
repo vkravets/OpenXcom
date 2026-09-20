@@ -1715,6 +1715,11 @@ void InventoryState::btnShowPersonalTemplateClick(Action *)
 
 void InventoryState::refreshMouse()
 {
+	if (InteractiveSurface *control = getNavigationButton())
+	{
+		control->refreshNavigationHover(this);
+		return;
+	}
 	// send a mouse motion event to refresh any hover actions
 	int x, y;
 	SDL_GetMouseState(&x, &y);

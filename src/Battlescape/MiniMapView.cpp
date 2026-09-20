@@ -41,6 +41,35 @@ const int CELL_WIDTH = 4;
 const int CELL_HEIGHT = 4;
 const int MAX_FRAME = 2;
 
+bool MiniMapView::isNavigationTarget()
+{
+	return isNavigationEnabled() && _visible && !_hidden && _isFocused;
+}
+
+SDL_Rect MiniMapView::getNavigationRect(bool active) const
+{
+	if (!active)
+		return InteractiveSurface::getNavigationRect(false);
+	return { static_cast<Sint16>(getX() + (getWidth() / 2 / CELL_WIDTH) * CELL_WIDTH),
+		static_cast<Sint16>(getY() + (getHeight() / 2 / CELL_HEIGHT) * CELL_HEIGHT), CELL_WIDTH, CELL_HEIGHT };
+}
+
+NavigationResult MiniMapView::handleNavigation(NavigationCommand command, State *)
+{
+	if (command == NavigationCommand::Cancel || command == NavigationCommand::End || command == NavigationCommand::Activate)
+		return NavigationResult::Finished;
+	Position position = _camera->getCenterPosition();
+	if (command == NavigationCommand::Left) --position.x;
+	else if (command == NavigationCommand::Right) ++position.x;
+	else if (command == NavigationCommand::Up) --position.y;
+	else if (command == NavigationCommand::Down) ++position.y;
+	else if (command != NavigationCommand::Begin)
+		return NavigationResult::Unhandled;
+	_camera->centerOnPosition(position);
+	_redraw = true;
+	return NavigationResult::Handled;
+}
+
 /**
  * Initializes all the elements in the MiniMapView.
  * @param w The MiniMapView width.
@@ -229,7 +258,7 @@ void MiniMapView::mousePress(Action *action, State *state)
 {
 	InteractiveSurface::mousePress(action, state);
 
-	if (action->getDetails()->button.button == Options::battleDragScrollButton)
+	if (!action->isNavigationAction() && action->getDetails()->button.button == Options::battleDragScrollButton)
 	{
 		_isMouseScrolling = true;
 		_isMouseScrolled = false;

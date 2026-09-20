@@ -358,14 +358,16 @@ void ModListState::moveModUp(Action *action, unsigned int row, bool max)
 		if (curScrollPos < targetScrollPos)
 		{
 			int ydiff = _lstMods->getTextHeight(row - 1);
-			SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(),
-				 action->getTopBlackBand() + action->getYMouse() - static_cast<Uint16>(ydiff * action->getYScale()));
+			if (!action->isNavigationAction())
+				SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(),
+					 action->getTopBlackBand() + action->getYMouse() - static_cast<Uint16>(ydiff * action->getYScale()));
 		}
 		else
 		{
 			int ydiff = _lstMods->getRowY(row) - _lstMods->getY();
-			SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(),
-				 action->getTopBlackBand() + action->getYMouse() - static_cast<Uint16>(ydiff * action->getYScale()));
+			if (!action->isNavigationAction())
+				SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(),
+					 action->getTopBlackBand() + action->getYMouse() - static_cast<Uint16>(ydiff * action->getYScale()));
 			_lstMods->scrollTo(targetScrollPos);
 		}
 
@@ -373,6 +375,8 @@ void ModListState::moveModUp(Action *action, unsigned int row, bool max)
 		lstModsRefresh(_lstMods->getScroll());
 	}
 	Options::reload = true;
+	if (action->isNavigationAction())
+		_lstMods->setNavigationRow(max ? 0 : row - 1);
 }
 
 void ModListState::lstModsRightArrowClick(Action *action)
@@ -442,14 +446,16 @@ void ModListState::moveModDown(Action *action, unsigned int row, bool max)
 		if (curScrollPos + (int)_lstMods->getVisibleRows() > targetScrollPos)
 		{
 			int ydiff = _lstMods->getTextHeight(row + 1);
-			SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(),
-				 action->getTopBlackBand() + action->getYMouse() + static_cast<Uint16>(ydiff * action->getYScale()));
+			if (!action->isNavigationAction())
+				SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(),
+					 action->getTopBlackBand() + action->getYMouse() + static_cast<Uint16>(ydiff * action->getYScale()));
 		}
 		else
 		{
 			int ydiff = _lstMods->getY() + _lstMods->getHeight() - (_lstMods->getRowY(row) + _lstMods->getTextHeight(row));
-			SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(),
-				 action->getTopBlackBand() + action->getYMouse() + static_cast<Uint16>(ydiff * action->getYScale()));
+			if (!action->isNavigationAction())
+				SDL_WarpMouse(action->getLeftBlackBand() + action->getXMouse(),
+					 action->getTopBlackBand() + action->getYMouse() + static_cast<Uint16>(ydiff * action->getYScale()));
 			_lstMods->scrollTo(targetScrollPos - _lstMods->getVisibleRows() + 1);
 		}
 
@@ -457,6 +463,8 @@ void ModListState::moveModDown(Action *action, unsigned int row, bool max)
 		lstModsRefresh(_lstMods->getScroll());
 	}
 	Options::reload = true;
+	if (action->isNavigationAction())
+		_lstMods->setNavigationRow(max ? _mods.size() - 1 : row + 1);
 }
 
 void ModListState::lstModsMousePress(Action *action)

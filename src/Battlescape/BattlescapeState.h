@@ -240,6 +240,7 @@ public:
 	std::string getMeleeDamagePreview(BattleUnit *actor, BattleItem *weapon) const;
 	/// Handles keypresses.
 	void handle(Action *action) override;
+	bool allowButtonNavigation() const override;
 	/// Displays a popup window.
 	void popup(State *state);
 	/// Finishes a battle.

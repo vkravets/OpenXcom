@@ -63,6 +63,12 @@ protected:
 
 	SDL_Color _palette[256];
 	Uint8 _cursorColor;
+private:
+	InteractiveSurface *_navigationButton;
+	Surface *_navigationFrame;
+	bool _navigationEditing;
+	std::vector<InteractiveSurface*> getNavigationButtons() const;
+	void finishNavigationControl(bool cancel);
 public:
 	/// Creates a new state linked to a game.
 	State();
@@ -106,6 +112,27 @@ public:
 	bool handleControllerButton(bool confirm, Action *action);
 	/// Gets the visible focused text field selected by normal modal input routing.
 	TextEdit *getFocusedTextEdit() const;
+	/// Whether the current screen can accept interface navigation.
+	virtual bool allowButtonNavigation() const;
+	/// Routes focus to a nested screen such as an active interception window.
+	virtual State *getNavigationState();
+	virtual bool cycleNavigationState(bool backwards);
+	bool isNavigationBoundary(bool backwards) const;
+	bool isNavigationState() const;
+	bool containsSurface(const Surface *surface) const;
+	bool isNavigationEditing() const;
+	/// Leaves only the selected control's interaction, keeping outer navigation active.
+	bool cancelNavigationControl();
+	/// Gets the currently selected, available interactive control.
+	InteractiveSurface *getNavigationButton() const;
+	/// Moves spatially, or cycles in reading order when dx and dy are zero.
+	bool navigateButtons(int dx, int dy, bool backwards = false);
+	/// Finishes control interaction and clears keyboard/controller selection.
+	void clearButtonNavigation();
+	/// Enters a control or activates its selection through normal input handlers.
+	bool activateNavigationButton(Uint8 mouseButton = SDL_BUTTON_LEFT);
+	/// Draws the selection border above the active state's surfaces.
+	void blitButtonNavigation();
 	/// Runs state functionality every cycle.
 	virtual void think();
 	/// Blits the state to the screen.

@@ -2690,6 +2690,11 @@ std::string BattlescapeState::getMeleeDamagePreview(BattleUnit *actor, BattleIte
 	return ss.str();
 }
 
+bool BattlescapeState::allowButtonNavigation() const
+{
+	return !_firstInit && _game->getCursor()->getVisible();
+}
+
 /**
  * Takes care of any events from the core game engine.
  * @param action Pointer to an action.

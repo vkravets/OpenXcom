@@ -19,6 +19,7 @@
  */
 #include <list>
 #include <map>
+#include <set>
 #include <string>
 #include <SDL.h>
 
@@ -64,6 +65,12 @@ private:
 	Sint16 _joystickAxisX, _joystickAxisY;
 	Uint8 _joystickHatState;
 	Uint8 _mouseButtons, _joystickMouseButtons;
+	bool _joystickNavigation, _navigationAxisDown, _navigationWaitForNeutral, _keyboardButtonNavigation;
+	Uint8 _joystickHatKeys, _navigationRepeatHat;
+	State *_joystickHatKeyState, *_navigationRepeatState;
+	Uint32 _navigationRepeatSince;
+	bool _navigationRepeating;
+	std::set<SDLKey> _navigationHeldKeys;
 	struct JoystickButtonBinding
 	{
 		SDLKey key = SDLK_UNKNOWN;
@@ -73,12 +80,25 @@ private:
 		TextEdit *editor = nullptr;
 	};
 	std::map<Uint8, JoystickButtonBinding> _joystickButtonBindings;
-	enum { CONTROLLER_CONFIRM_EVENT = 1, CONTROLLER_CANCEL_EVENT = 2, CONTROLLER_DELETE_EVENT = 3 };
+	enum { CONTROLLER_CONFIRM_EVENT = 1, CONTROLLER_CANCEL_EVENT = 2, CONTROLLER_DELETE_EVENT = 3,
+		CONTROLLER_NAVIGATION_TOGGLE = 4, CONTROLLER_NAVIGATION_ACTIVATE = 5,
+		CONTROLLER_HAT_PRESS = 6, CONTROLLER_HAT_RELEASE = 7, NAVIGATION_KEY_RELEASE_EVENT = 8,
+		CONTROLLER_NAVIGATION_SECONDARY = 9, CONTROLLER_NAVIGATION_TERTIARY = 10, CONTROLLER_NAVIGATION_NEXT = 11 };
 	float _joystickCursorFracX, _joystickCursorFracY;
 	Uint32 _joystickLastTime;
 	static const double VOLUME_GRADIENT;
 	/// Converts controller input to shared mouse/keyboard events; false consumes the event.
 	bool convertInputEvent(SDL_Event &event);
+	/// Stops held navigation and releases arrows sent to their original state.
+	void resetButtonNavigationInput();
+	/// Switches between pointer and button navigation for the controller.
+	void toggleButtonNavigation();
+	/// Intercepts keyboard navigation before state-specific shortcuts.
+	bool handleButtonNavigation(SDL_Event &event);
+	/// Moves the selection in the directions of one D-pad step.
+	void navigateJoystickButtons(Uint8 hat);
+	/// Repeats a held navigation direction, once per frame at most.
+	void repeatButtonNavigation(Uint8 liveHat);
 
 public:
 	/// Creates a new game and initializes SDL.
@@ -121,6 +141,8 @@ public:
 	Uint8 getMouseButtonState() const;
 	/// Returns whether current state is the param state
 	bool isState(State *state) const;
+	/// Gets the active screen, if one is present.
+	State *getState() const { return _states.empty() ? nullptr : _states.back(); }
 	/// Returns whether a UfopaediaStartState is in the background.
 	bool containsUfopaediaStartState() const;
 	/// Returns whether a NotesState is in the background.

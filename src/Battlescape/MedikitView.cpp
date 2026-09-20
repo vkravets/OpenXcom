@@ -17,6 +17,7 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "MedikitView.h"
+#include <algorithm>
 #include "../Engine/Game.h"
 #include "../Mod/Mod.h"
 #include "../Mod/RuleInterface.h"
@@ -28,6 +29,46 @@
 
 namespace OpenXcom
 {
+
+bool MedikitView::isNavigationTarget()
+{
+	return isNavigationEnabled() && _visible && !_hidden && _isFocused && _unit;
+}
+
+SDL_Rect MedikitView::getNavigationRect(bool active) const
+{
+	if (!active || _selectedPart < 0)
+		return InteractiveSurface::getNavigationRect(false);
+	Surface *part = _game->getMod()->getSurfaceSet("MEDIBITS.DAT")->getFrame(_selectedPart);
+	int left = part->getWidth(), top = part->getHeight(), right = -1, bottom = -1;
+	for (int y = 0; y < part->getHeight(); ++y)
+		for (int x = 0; x < part->getWidth(); ++x)
+			if (part->getPixel(x, y))
+			{
+				left = std::min(left, x); top = std::min(top, y);
+				right = std::max(right, x); bottom = std::max(bottom, y);
+			}
+	if (right < left)
+		return InteractiveSurface::getNavigationRect(false);
+	return { static_cast<Sint16>(getX() + left), static_cast<Sint16>(getY() + top),
+		static_cast<Uint16>(right - left + 1), static_cast<Uint16>(bottom - top + 1) };
+}
+
+NavigationResult MedikitView::handleNavigation(NavigationCommand command, State *)
+{
+	if (command == NavigationCommand::Cancel || command == NavigationCommand::End)
+		return NavigationResult::Finished;
+	const int count = std::min<int>(BODYPART_MAX, static_cast<int>(_game->getMod()->getSurfaceSet("MEDIBITS.DAT")->getTotalFrames()));
+	if (count == 0)
+		return NavigationResult::Finished;
+	_selectedPart = std::max(0, std::min(_selectedPart, count - 1));
+	if (command == NavigationCommand::Left || command == NavigationCommand::Up)
+		_selectedPart = (_selectedPart + count - 1) % count;
+	else if (command == NavigationCommand::Right || command == NavigationCommand::Down)
+		_selectedPart = (_selectedPart + 1) % count;
+	_redraw = true;
+	return NavigationResult::Handled;
+}
 /**
  * Initializes the Medikit view.
  * @param w The MinikitView width.

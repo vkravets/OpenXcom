@@ -18,6 +18,7 @@
  */
 #include "MiniBaseView.h"
 #include <cmath>
+#include <algorithm>
 #include "../Engine/SurfaceSet.h"
 #include "../Engine/Action.h"
 #include "../Savegame/Base.h"
@@ -26,6 +27,36 @@
 
 namespace OpenXcom
 {
+
+bool MiniBaseView::isNavigationTarget()
+{
+	return _bases && !_bases->empty() && InteractiveSurface::isNavigationTarget();
+}
+
+SDL_Rect MiniBaseView::getNavigationRect(bool active) const
+{
+	if (!active)
+		return InteractiveSurface::getNavigationRect(false);
+	return { static_cast<Sint16>(getX() + _navigationBase * (MINI_SIZE + 2)),
+		static_cast<Sint16>(getY()), MINI_SIZE + 2, static_cast<Uint16>(getHeight()) };
+}
+
+NavigationResult MiniBaseView::handleNavigation(NavigationCommand command, State *state)
+{
+	if (command == NavigationCommand::Cancel || command == NavigationCommand::End || !_bases || _bases->empty())
+		return NavigationResult::Finished;
+	const size_t count = std::min(_bases->size(), static_cast<size_t>(MAX_BASES));
+	if (command == NavigationCommand::Begin)
+		_navigationBase = std::min(_base, count - 1);
+	else if (command == NavigationCommand::Left || command == NavigationCommand::Up)
+		_navigationBase = (_navigationBase + count - 1) % count;
+	else if (command == NavigationCommand::Right || command == NavigationCommand::Down)
+		_navigationBase = (_navigationBase + 1) % count;
+	else
+		return NavigationResult::Unhandled;
+	refreshNavigationHover(state);
+	return NavigationResult::Handled;
+}
 
 /**
  * Sets up a mini base view with the specified size and position.

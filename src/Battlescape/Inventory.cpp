@@ -52,6 +52,106 @@
 namespace OpenXcom
 {
 
+std::vector<SDL_Rect> Inventory::getNavigationCells() const
+{
+	std::vector<SDL_Rect> cells;
+	for (const auto &entry : *_game->getMod()->getInventories())
+	{
+		const RuleInventory *slot = entry.second;
+		const int x = getX() + slot->getX(), y = getY() + slot->getY();
+		if (slot->getType() == INV_HAND)
+			cells.push_back({(Sint16)x, (Sint16)y, RuleInventory::HAND_W * RuleInventory::SLOT_W, RuleInventory::HAND_H * RuleInventory::SLOT_H});
+		else if (slot->getType() == INV_SLOT)
+		{
+			for (const auto &cell : *slot->getSlots())
+				cells.push_back({(Sint16)(x + cell.x * RuleInventory::SLOT_W), (Sint16)(y + cell.y * RuleInventory::SLOT_H), RuleInventory::SLOT_W, RuleInventory::SLOT_H});
+		}
+		else
+		{
+			for (int row = 0; row < _groundSlotsY; ++row)
+				for (int col = 0; col < _groundSlotsX; ++col)
+					cells.push_back({(Sint16)(x + col * RuleInventory::SLOT_W), (Sint16)(y + row * RuleInventory::SLOT_H), RuleInventory::SLOT_W, RuleInventory::SLOT_H});
+		}
+	}
+	std::sort(cells.begin(), cells.end(), [](const SDL_Rect &a, const SDL_Rect &b) { return a.y == b.y ? a.x < b.x : a.y < b.y; });
+	return cells;
+}
+
+bool Inventory::isNavigationTarget()
+{
+	return isNavigationEnabled() && _visible && !_hidden && _isFocused && _selUnit && !getNavigationCells().empty();
+}
+
+bool Inventory::blocksNavigationAt(double x, double y)
+{
+	if (!isNavigationEnabled() || !_visible || _hidden)
+		return false;
+	for (const SDL_Rect &cell : getNavigationCells())
+		if (x >= cell.x && y >= cell.y && x < cell.x + cell.w && y < cell.y + cell.h)
+			return true;
+	return false;
+}
+
+SDL_Rect Inventory::getNavigationRect(bool active) const
+{
+	const auto cells = getNavigationCells();
+	if (!active || cells.empty())
+		return InteractiveSurface::getNavigationRect(false);
+	SDL_Rect cell = cells[std::min(_navigationCell, cells.size() - 1)];
+	// The mouse placement code uses the centre of the held item to find its top-left slot.
+	if (_selItem && cell.w == RuleInventory::SLOT_W && cell.h == RuleInventory::SLOT_H)
+	{
+		cell.w = _selItem->getRules()->getInventoryWidth() * RuleInventory::SLOT_W;
+		cell.h = _selItem->getRules()->getInventoryHeight() * RuleInventory::SLOT_H;
+	}
+	return cell;
+}
+
+NavigationResult Inventory::handleNavigation(NavigationCommand command, State *state)
+{
+	if (command == NavigationCommand::Cancel && _selItem)
+	{
+		if (_selItem->getSlot()->getType() == INV_GROUND)
+			++_stackLevel[_selItem->getSlotX()][_selItem->getSlotY()];
+		setSelectedItem(0);
+		refreshNavigationHover(state);
+		return NavigationResult::Handled;
+	}
+	if (command == NavigationCommand::Cancel || command == NavigationCommand::End)
+		return NavigationResult::Finished;
+	const auto cells = getNavigationCells();
+	if (cells.empty())
+		return NavigationResult::Finished;
+	_navigationCell = std::min(_navigationCell, cells.size() - 1);
+	const int dx = command == NavigationCommand::Left ? -1 : command == NavigationCommand::Right ? 1 : 0;
+	const int dy = command == NavigationCommand::Up ? -1 : command == NavigationCommand::Down ? 1 : 0;
+	if (!dx && !dy && command != NavigationCommand::Begin)
+		return NavigationResult::Unhandled;
+	if (dx || dy)
+	{
+		const SDL_Rect from = cells[_navigationCell];
+		int bestScore = 0;
+		for (size_t i = 0; i < cells.size(); ++i)
+		{
+			const SDL_Rect to = cells[i];
+			const int offsetX = 2 * (to.x - from.x) + to.w - from.w;
+			const int offsetY = 2 * (to.y - from.y) + to.h - from.h;
+			const int forward = dx ? offsetX * dx : offsetY * dy;
+			if (forward <= 0)
+				continue;
+			const bool aligned = dx ? to.y < from.y + from.h && from.y < to.y + to.h : to.x < from.x + from.w && from.x < to.x + to.w;
+			const int score = (aligned ? 0 : 1000000) + forward * forward + (dx ? offsetY * offsetY : offsetX * offsetX);
+			if (!bestScore || score < bestScore)
+			{
+				bestScore = score;
+				_navigationCell = i;
+			}
+		}
+	}
+	refreshNavigationHover(state);
+	return NavigationResult::Handled;
+}
+
 /**
  * Sets up an inventory with the specified size and position.
  * @param game Pointer to core game.
@@ -1189,6 +1289,8 @@ void Inventory::mouseClick(Action *action, State *state)
 		}
 	}
 	InteractiveSurface::mouseClick(action, state);
+	if (action->isNavigationAction() && state->isNavigationState() && state->containsSurface(this))
+		refreshNavigationHover(state);
 }
 
 /**
